@@ -43,6 +43,34 @@ function detectGenre(title, author) {
   return "Literatura Geral";
 }
 
+function detectAgeRating(title, author, category) {
+  const text = ((title || "") + " " + (author || "") + " " + (category || "")).toLowerCase();
+
+  // 18+ (Adulto / Erótico / Conteúdo Explícito)
+  const adult18 = /\b(sexo|sexual|erótic[ao]|cinquenta tons|kam[as] sutra|sadis|orgasm|sensual|prostitut|bdsm|porn[oô]|ninfeta|putaria|adult[ao]s?)\b/i;
+  if (adult18.test(text)) return "18+";
+
+  // 16+ (Terror Pesado, Violência Gráfica, Serial Killers)
+  const mature16 = /\b(serial killer|psicopata|tortura|canibal|estupr|chacina|homic[ií]dio|necrom|terror psicol|stephen king|clive barker|thomas harris|exorcism)\b/i;
+  if (mature16.test(text)) return "16+";
+
+  // 14+ (Distopias, Temas Jurídicos, Políticos, Filosofia Complexa, Conflitos)
+  const teen14 = /\b(direito|penal|crime|guerra|holocausto|ditadura|revolu[cç][aã]o|distopia|1984|maquiavel|nietzsche|freud|marx|admir[aá]vel mundo|suic[ií]di|trai[cç][aã]o|duna)\b/i;
+  if (teen14.test(text)) return "14+";
+
+  // 12+ (Ficção Científica, Fantasia, Negócios, Romance)
+  if (category === "Ficção Científica" || category === "Fantasia & Aventura" || category === "Desenvolvimento Pessoal & Negócios" || category === "Romance") {
+    return "12+";
+  }
+  const teen12 = /\b(magia|brux|drag[aã]o|espada|h[aá]bito|neg[oó]cios|investiment|finan[cç]|lideran[cç]|carreira|harry potter|tolkien)\b/i;
+  if (teen12.test(text)) return "12+";
+
+  if (category === "Suspense & Mistério") return "14+";
+  if (category === "Filosofia & História") return "12+";
+
+  return "Livre";
+}
+
 function parseFilename(filename) {
   let baseName = filename.replace(/\.[^/.]+$/, "");
   baseName = baseName.replace(/_[a-zA-Z0-9\._]+$/, "");
@@ -129,13 +157,13 @@ function doGet(e) {
           format: format,
           size: formatBytes(size),
           sizeBytes: size,
-          pages: Math.max(60, Math.min(1200, Math.round(size / 4500))),
+          ageRating: detectAgeRating(parsed.title, parsed.author, category),
           dateAdded: dateAdded,
-          synopsis: "Obra '" + parsed.title + "', de " + parsed.author + ". Disponível na sua biblioteca pessoal conectada ao Google Drive.",
+          synopsis: "Obra '" + parsed.title + "', de " + parsed.author + ". Disponível na sua biblioteca pessoal para leitura e download.",
           fileName: name,
           driveUrl: "https://drive.google.com/file/d/" + fileId + "/view?usp=sharing",
           downloadUrl: "https://drive.usercontent.google.com/download?id=" + fileId + "&export=download",
-          // Thumbnail oficial do Google Drive para pré-visualização (útil para PDFs)
+          // Thumbnail oficial para pré-visualização
           thumbnailUrl: "https://drive.google.com/thumbnail?id=" + fileId + "&sz=w600"
         });
       }

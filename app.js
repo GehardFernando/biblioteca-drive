@@ -239,6 +239,42 @@ function handleCoverError(imgElement) {
   imgElement.src = defaultFallbackCover;
 }
 
+// Classificação Indicativa Recomendada para cada Livro (Faixa Etária)
+function detectAgeRating(book) {
+  if (!book) return "Livre";
+  if (book.ageRating) return book.ageRating;
+
+  const title = book.title || "";
+  const author = book.author || "";
+  const category = book.category || "";
+  const synopsis = book.synopsis || "";
+  const text = `${title} ${author} ${category} ${synopsis}`.toLowerCase();
+
+  // 18+ (Adulto / Erótico / Conteúdo Explícito)
+  const adult18 = /\b(sexo|sexual|erótic[ao]|cinquenta tons|kam[as] sutra|sadis|orgasm|sensual|prostitut|bdsm|porn[oô]|ninfeta|putaria|adult[ao]s?)\b/i;
+  if (adult18.test(text)) return "18+";
+
+  // 16+ (Terror Pesado, Violência Gráfica, Serial Killers)
+  const mature16 = /\b(serial killer|psicopata|tortura|canibal|estupr|chacina|homic[ií]dio|necrom|terror psicol|stephen king|clive barker|thomas harris|exorcism)\b/i;
+  if (mature16.test(text)) return "16+";
+
+  // 14+ (Distopias, Temas Jurídicos, Políticos, Filosofia Complexa, Conflitos)
+  const teen14 = /\b(direito|penal|crime|guerra|holocausto|ditadura|revolu[cç][aã]o|distopia|1984|maquiavel|nietzsche|freud|marx|admir[aá]vel mundo|suic[ií]di|trai[cç][aã]o|duna)\b/i;
+  if (teen14.test(text)) return "14+";
+
+  // 12+ (Ficção Científica, Fantasia, Negócios, Romance)
+  if (category === "Ficção Científica" || category === "Fantasia & Aventura" || category === "Desenvolvimento Pessoal & Negócios" || category === "Romance") {
+    return "12+";
+  }
+  const teen12 = /\b(magia|brux|drag[aã]o|espada|h[aá]bito|neg[oó]cios|investiment|finan[cç]|lideran[cç]|carreira|harry potter|tolkien)\b/i;
+  if (teen12.test(text)) return "12+";
+
+  if (category === "Suspense & Mistério") return "14+";
+  if (category === "Filosofia & História") return "12+";
+
+  return "Livre";
+}
+
 // Elementos DOM
 const booksContainer = document.getElementById("booksContainer");
 const bookCount = document.getElementById("bookCount");
@@ -265,7 +301,7 @@ const modalAuthor = document.getElementById("modalAuthor");
 const modalSynopsis = document.getElementById("modalSynopsis");
 const modalFormat = document.getElementById("modalFormat");
 const modalAddedDate = document.getElementById("modalAddedDate");
-const modalPages = document.getElementById("modalPages");
+const modalAgeRating = document.getElementById("modalAgeRating");
 const modalDownloadBtn = document.getElementById("modalDownloadBtn");
 
 // Toast
@@ -331,7 +367,7 @@ async function syncWithGoogleDrive(forceRefresh = false) {
 
         buildCategoryPills();
         renderBooks();
-        showToast(`Sincronizado com o Google Drive! (${syncedBooks.length} livros)`);
+        showToast(`Catálogo atualizado! (${syncedBooks.length} livros)`);
       }
     }
   } catch (err) {
@@ -537,7 +573,13 @@ function openBookModal(bookId) {
 
     modalFormat.textContent = book.format || "EPUB";
     modalAddedDate.textContent = book.dateAdded || "Recente";
-    modalPages.textContent = book.pages ? `${book.pages} págs` : "--";
+
+    // Classificação Indicativa Recomendada
+    const age = detectAgeRating(book);
+    if (modalAgeRating) {
+      modalAgeRating.textContent = age;
+      modalAgeRating.className = `info-value age-badge age-${age.replace("+", "plus").toLowerCase()}`;
+    }
 
     // Configurar ação de download no modal
     modalDownloadBtn.onclick = (e) => {
@@ -804,7 +846,7 @@ function setupEventListeners() {
   if (syncDriveBtn) {
     syncDriveBtn.addEventListener("click", async () => {
       syncDriveBtn.classList.add("spinning");
-      showToast("Sincronizando com o Google Drive...");
+      showToast("Atualizando catálogo...");
       await syncWithGoogleDrive(true);
       syncDriveBtn.classList.remove("spinning");
     });
