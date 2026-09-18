@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0a0e17" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Let's Be Readers | Biblioteca Digital</title>
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Background Ambient Glow -->
+  <div class="ambient-glow glow-top-left"></div>
+  <div class="ambient-glow glow-bottom-right"></div>
+
+  <!-- Header / Barra Superior -->
+  <header class="navbar">
+    <div class="nav-container">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/>
+            <path d="M6 6h10"/>
+            <path d="M6 10h10"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">Let's Be Readers</span>
+          <span class="brand-tag">Nuvem Pessoal</span>
+        </div>
+      </div>
+
+      <!-- Barra de Busca Central -->
+      <div class="search-wrapper">
+        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input 
+          type="text" 
+          id="searchInput" 
+          placeholder="Buscar por título, autor ou gênero... (Pressione /)" 
+          autocomplete="off"
+        />
+        <span class="search-shortcut">/</span>
+      </div>
+
+      <!-- Ações do Header -->
+      <div class="nav-actions">
+        <div class="stats-chip">
+          <span class="status-indicator"></span>
+          <span id="bookCount">12 livros</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Conteúdo Principal -->
+  <main class="main-container">
+    
+    <!-- Hero Compacto / Boas-vindas -->
+    <section class="hero-section">
+      <div class="hero-content">
+        <h1>Sua estante na nuvem</h1>
+        <p>Acesse, pesquise e faça download dos livros armazenados diretamente no seu Google Drive.</p>
+      </div>
+      <div class="hero-meta">
+        <div class="storage-info">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span>Sincronizado com Google Drive</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Barra de Controles e Filtros -->
+    <section class="filters-bar">
+      <!-- Filtro por Categoria / Formato -->
+      <div class="filter-pills" id="categoryPills">
+        <button class="pill active" data-category="all">Todos</button>
+        <button class="pill" data-category="EPUB">EPUB</button>
+        <button class="pill" data-category="PDF">PDF</button>
+        <span class="pill-divider"></span>
+        <button class="pill" data-category="Tecnologia">Tecnologia</button>
+        <button class="pill" data-category="Ficção Científica">Ficção Científica</button>
+        <button class="pill" data-category="Filosofia">Filosofia</button>
+        <button class="pill" data-category="Produtividade">Produtividade</button>
+      </div>
+
+      <!-- Ordenação & Modo de Exibição -->
+      <div class="view-controls">
+        <div class="sort-select-wrapper">
+          <label for="sortSelect">Ordenar:</label>
+          <select id="sortSelect">
+            <option value="recent">Mais recentes</option>
+            <option value="title-asc">Título (A-Z)</option>
+            <option value="title-desc">Título (Z-A)</option>
+            <option value="author-asc">Autor (A-Z)</option>
+            <option value="size-desc">Maior tamanho</option>
+          </select>
+        </div>
+
+        <div class="view-toggle">
+          <button class="view-btn active" id="gridModeBtn" title="Visualização em Grade">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+          </button>
+          <button class="view-btn" id="listModeBtn" title="Visualização em Lista">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Grid / Estante de Livros -->
+    <section class="books-grid" id="booksContainer">
+      <!-- Injetado dinamicamente pelo JavaScript -->
+    </section>
+
+    <!-- Botão Carregar Mais (Paginação fluida) -->
+    <div class="load-more-container hidden" id="loadMoreContainer">
+      <button class="btn btn-load-more" id="loadMoreBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+        <span>Carregar mais livros</span>
+        <span class="load-more-counter" id="loadMoreCounter"></span>
+      </button>
+    </div>
+
+    <!-- Estado Vazio (Caso nenhuma busca encontre resultado) -->
+    <div class="empty-state hidden" id="emptyState">
+      <div class="empty-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+      </div>
+      <h3>Nenhum livro encontrado</h3>
+      <p>Tente ajustar os termos da busca ou limpar os filtros de categoria.</p>
+      <button class="btn btn-secondary" id="clearFiltersBtn">Limpar filtros</button>
+    </div>
+
+  </main>
+
+  <!-- Modal de Detalhes do Livro -->
+  <div class="modal-backdrop hidden" id="bookModal">
+    <div class="modal-card">
+      <button class="modal-close" id="modalCloseBtn" aria-label="Fechar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+
+      <div class="modal-body">
+        <div class="modal-cover-wrapper">
+          <img id="modalCover" src="" alt="Capa do Livro" />
+          <div class="modal-format-badge" id="modalFormatBadge">PDF</div>
+        </div>
+
+        <div class="modal-details">
+          <div class="modal-meta-top">
+            <span class="modal-genre" id="modalGenre">Tecnologia</span>
+            <span class="modal-size" id="modalSize">4.2 MB</span>
+          </div>
+
+          <h2 class="modal-title" id="modalTitle">Título do Livro</h2>
+          <p class="modal-author" id="modalAuthor">Por Nome do Autor</p>
+
+          <div class="modal-synopsis-section">
+            <h4>Sinopse</h4>
+            <p class="modal-synopsis" id="modalSynopsis">Descrição do livro...</p>
+          </div>
+
+          <div class="modal-info-grid">
+            <div class="info-item">
+              <span class="info-label">Formato</span>
+              <span class="info-value" id="modalFormat">EPUB</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Data de Adição</span>
+              <span class="info-value" id="modalAddedDate">12/09/2026</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Páginas Estimadas</span>
+              <span class="info-value" id="modalPages">320 págs</span>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <a href="#" class="btn btn-primary" id="modalDownloadBtn" download>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>Baixar Livro</span>
+            </a>
+            
+            <a href="#" class="btn btn-secondary" id="modalDriveBtn" target="_blank">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+              <span>Abrir no Drive</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notificação Toast (Feedback de download) -->
+  <div class="toast-notification hidden" id="toastNotification">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+    <span id="toastMessage">Download iniciado!</span>
+  </div>
+
+  <script src="books-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

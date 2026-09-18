@@ -1,0 +1,22 @@
+# Dependências e caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Arquivos de livros reais (evita subir gigabytes de EPUBs/PDFs para o GitHub)
+livros
+*.epub
+*.pdf
+
+# Arquivos temporários e de sistema
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.local
+
+# IDEs e editores
+.vscode/
+.idea/
+*.swp
+*.swo
