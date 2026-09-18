@@ -413,7 +413,7 @@ function renderBooks() {
     const coverSrc = book.cover || defaultFallbackCover;
     
     return `
-      <article class="book-card" data-id="${book.id}">
+      <article class="book-card" data-id="${book.id}" role="button" tabindex="0" aria-label="Ver detalhes de ${book.title}">
         <div class="book-card-cover-wrapper">
           <img class="book-card-cover" src="${coverSrc}" alt="Capa de ${book.title}" loading="lazy" onerror="handleCoverError(this)" />
           <span class="format-badge ${formatClass}">${book.format}</span>
@@ -488,58 +488,75 @@ function getFilteredAndSortedBooks() {
     });
 }
 
-// Eventos de Cards
-function attachCardEvents() {
-  document.querySelectorAll(".book-card").forEach(card => {
-    card.addEventListener("click", (e) => {
-      // Se clicou no botão de download rápido, dispara o download
-      if (e.target.closest(".btn-download-quick")) {
-        e.stopPropagation();
-        const bookId = card.getAttribute("data-id");
-        triggerDownload(bookId);
-        return;
-      }
+// Ação centralizada disparada por clique ou toque no card
+function handleCardAction(target) {
+  if (!target) return;
 
-      // Caso contrário, abre o modal de detalhes
-      const bookId = card.getAttribute("data-id");
-      openBookModal(bookId);
-    });
-  });
+  // Se clicou no botão de download rápido
+  const quickBtn = target.closest(".btn-download-quick");
+  if (quickBtn) {
+    const bookId = quickBtn.getAttribute("data-download-id") || quickBtn.closest(".book-card")?.getAttribute("data-id");
+    if (bookId) triggerDownload(bookId);
+    return;
+  }
+
+  // Caso contrário, abre o modal de detalhes
+  const card = target.closest(".book-card");
+  if (card) {
+    const bookId = card.getAttribute("data-id");
+    if (bookId) openBookModal(bookId);
+  }
+}
+
+// Eventos de Cards (compatibilidade)
+function attachCardEvents() {
+  // A manipulação é feita por delegação de eventos centralizada no booksContainer
 }
 
 // Abrir Modal
 function openBookModal(bookId) {
-  const book = allBooks.find(b => b.id === bookId);
-  if (!book) return;
+  try {
+    const idStr = String(bookId).trim();
+    const book = allBooks.find(b => String(b.id).trim() === idStr);
+    if (!book) {
+      console.warn("Livro não localizado no catálogo:", bookId);
+      return;
+    }
 
-  modalCover.onerror = () => handleCoverError(modalCover);
-  modalCover.src = book.cover || defaultFallbackCover;
-  modalCover.alt = `Capa de ${book.title}`;
-  modalFormatBadge.textContent = book.format || "EPUB";
-  modalFormatBadge.className = `modal-format-badge format-badge ${(book.format || "epub").toLowerCase()}`;
-  
-  modalGenre.textContent = book.category;
-  modalSize.textContent = book.size;
-  modalTitle.textContent = book.title;
-  modalAuthor.textContent = `Por ${book.author}`;
-  modalSynopsis.textContent = book.synopsis;
+    modalCover.onerror = () => handleCoverError(modalCover);
+    modalCover.src = book.cover || defaultFallbackCover;
+    modalCover.alt = `Capa de ${book.title || "Livro"}`;
+    modalFormatBadge.textContent = book.format || "EPUB";
+    modalFormatBadge.className = `modal-format-badge format-badge ${(book.format || "epub").toLowerCase()}`;
+    
+    modalGenre.textContent = book.category || "Literatura";
+    modalSize.textContent = book.size || "--";
+    modalTitle.textContent = book.title || "Sem título";
+    modalAuthor.textContent = book.author ? `Por ${book.author}` : "Autor não informado";
+    modalSynopsis.textContent = book.synopsis || "Sinopse não disponível para esta obra.";
 
-  modalFormat.textContent = book.format || "EPUB";
-  modalAddedDate.textContent = book.dateAdded || "Recente";
-  modalPages.textContent = `${book.pages} págs`;
+    modalFormat.textContent = book.format || "EPUB";
+    modalAddedDate.textContent = book.dateAdded || "Recente";
+    modalPages.textContent = book.pages ? `${book.pages} págs` : "--";
 
-  // Configurar ação de download no modal
-  modalDownloadBtn.onclick = () => {
-    triggerDownload(book.id);
-  };
+    // Configurar ação de download no modal
+    modalDownloadBtn.onclick = (e) => {
+      e.stopPropagation();
+      triggerDownload(book.id);
+    };
 
-  bookModal.classList.remove("hidden");
-  document.body.style.overflow = "hidden"; // trava rolagem de fundo
+    bookModal.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    document.body.style.overflow = "hidden"; // trava rolagem de fundo
+  } catch (err) {
+    console.error("Erro ao abrir modal de detalhes:", err);
+  }
 }
 
 // Fechar Modal
 function closeBookModal() {
   bookModal.classList.add("hidden");
+  document.body.classList.remove("modal-open");
   document.body.style.overflow = "";
 }
 
@@ -682,8 +699,64 @@ function setupEventListeners() {
     renderBooks();
   });
 
+  // Delegação Unificada nos Cards (Mobile Touch + Desktop Click)
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchStartTime = 0;
+  let isScrolling = false;
+  let lastTouchTime = 0;
+
+  booksContainer.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 1) {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      touchStartTime = Date.now();
+      isScrolling = false;
+    }
+  }, { passive: true });
+
+  booksContainer.addEventListener("touchmove", (e) => {
+    if (e.touches.length === 1) {
+      const deltaX = Math.abs(e.touches[0].clientX - touchStartX);
+      const deltaY = Math.abs(e.touches[0].clientY - touchStartY);
+      if (deltaX > 8 || deltaY > 8) {
+        isScrolling = true;
+      }
+    }
+  }, { passive: true });
+
+  booksContainer.addEventListener("touchend", (e) => {
+    if (!isScrolling && e.changedTouches.length === 1) {
+      const duration = Date.now() - touchStartTime;
+      // Toque intencional rápido
+      if (duration < 380) {
+        lastTouchTime = Date.now();
+        handleCardAction(e.target);
+      }
+    }
+  });
+
+  booksContainer.addEventListener("click", (e) => {
+    // Se acabou de ser acionado por toque nos últimos 450ms, ignora o clique sintético
+    if (Date.now() - lastTouchTime < 450) return;
+    handleCardAction(e.target);
+  });
+
+  // Acessibilidade via teclado nos cards
+  booksContainer.addEventListener("keydown", (e) => {
+    if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("book-card")) {
+      e.preventDefault();
+      const bookId = e.target.getAttribute("data-id");
+      if (bookId) openBookModal(bookId);
+    }
+  });
+
   // Fechar Modal
   modalCloseBtn.addEventListener("click", closeBookModal);
+  modalCloseBtn.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    closeBookModal();
+  });
   bookModal.addEventListener("click", (e) => {
     if (e.target === bookModal) {
       closeBookModal();

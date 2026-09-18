@@ -72,6 +72,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+body.modal-open {
+  overflow: hidden;
+}
+
 /* Brilhos de Fundo (Ambient Glows) */
 .ambient-glow {
   position: fixed;
@@ -467,13 +471,27 @@ body {
   position: relative;
   min-width: 0;
   width: 100%;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(99, 102, 241, 0.15);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-.book-card:hover {
-  transform: translateY(-5px);
-  border-color: var(--border-card-hover);
-  background-color: var(--bg-card-hover);
-  box-shadow: var(--shadow-md), var(--shadow-glow);
+@media (hover: hover) {
+  .book-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--border-card-hover);
+    background-color: var(--bg-card-hover);
+    box-shadow: var(--shadow-md), var(--shadow-glow);
+  }
+
+  .book-card:hover .book-card-cover {
+    transform: scale(1.03);
+  }
+}
+
+.book-card:active {
+  transform: scale(0.98);
 }
 
 /* Wrapper da Capa */
@@ -494,10 +512,10 @@ body {
   object-fit: cover;
   transition: transform 0.4s ease;
   box-shadow: var(--shadow-book);
-}
-
-.book-card:hover .book-card-cover {
-  transform: scale(1.03);
+  pointer-events: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* Badge de Formato no Card */
@@ -765,21 +783,26 @@ body {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(5, 8, 15, 0.78);
+  width: 100%;
+  height: 100%;
+  background-color: rgba(5, 8, 15, 0.82);
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 2000;
   padding: 20px;
+  box-sizing: border-box;
   opacity: 1;
   transition: opacity var(--transition-fast);
 }
 
 .modal-backdrop.hidden {
-  display: none;
-  opacity: 0;
-  pointer-events: none;
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
 }
 
 .modal-card {
@@ -790,6 +813,8 @@ body {
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   position: relative;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), var(--shadow-glow);
   animation: modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1298,15 +1323,28 @@ body {
     padding: 12px;
   }
   .modal-card {
-    max-height: 94vh;
+    max-height: 92vh;
     border-radius: 16px;
+    width: 100%;
+    margin: auto;
+  }
+  .modal-close {
+    width: 42px;
+    height: 42px;
+    top: 12px;
+    right: 12px;
   }
   .modal-body {
     padding: 24px 16px 20px 16px;
-    gap: 20px;
+    gap: 18px;
+    width: 100%;
+    box-sizing: border-box;
   }
   .modal-cover-wrapper {
     width: 130px;
+  }
+  .modal-details {
+    width: 100%;
   }
   .modal-title {
     font-size: 1.28rem;
