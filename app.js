@@ -530,19 +530,36 @@ function openBookModal(bookId) {
   modalPages.textContent = `${book.pages} págs`;
 
   // Configurar ação de download no modal
-  modalDownloadBtn.onclick = (e) => {
-    e.preventDefault();
-    triggerDownload(book.id);
-  };
+  const downloadUrl = book.downloadUrl || (book.fileName ? `livros/${encodeURIComponent(book.fileName)}` : null);
+  if (downloadUrl) {
+    modalDownloadBtn.href = downloadUrl;
+    if (downloadUrl.startsWith("http")) {
+      modalDownloadBtn.target = "_blank";
+      modalDownloadBtn.rel = "noopener noreferrer";
+      modalDownloadBtn.removeAttribute("download");
+      modalDownloadBtn.onclick = () => {
+        showToast(`Baixando: ${book.title} (${book.format})`);
+      };
+    } else {
+      modalDownloadBtn.target = "_self";
+      modalDownloadBtn.setAttribute("download", book.fileName || `${book.title}.${(book.format || "epub").toLowerCase()}`);
+      modalDownloadBtn.onclick = () => {
+        showToast(`Baixando: ${book.title} (${book.format})`);
+      };
+    }
+  }
 
   // Botão secundário: se tiver driveUrl usa drive, senão aciona download direto
   if (book.driveUrl) {
     modalDriveBtn.href = book.driveUrl;
+    modalDriveBtn.target = "_blank";
+    modalDriveBtn.rel = "noopener noreferrer";
     modalDriveBtn.removeAttribute("download");
     modalDriveBtn.querySelector("span").textContent = "Abrir no Drive";
     modalDriveBtn.onclick = null;
   } else {
-    modalDriveBtn.href = book.downloadUrl || "#";
+    modalDriveBtn.href = downloadUrl || "#";
+    modalDriveBtn.target = "_blank";
     modalDriveBtn.setAttribute("download", book.fileName || `${book.title}.epub`);
     modalDriveBtn.querySelector("span").textContent = "Download Direto";
     modalDriveBtn.onclick = () => triggerDownload(book.id);

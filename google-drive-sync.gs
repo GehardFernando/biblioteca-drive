@@ -68,6 +68,12 @@ function formatBytes(bytes) {
 function doGet(e) {
   try {
     const folder = DriveApp.getFolderById(FOLDER_ID);
+    
+    // Tenta garantir que a pasta esteja visível para leitura com link
+    try {
+      folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (permErr) {}
+
     const files = folder.getFiles();
     const books = [];
     let count = 0;
@@ -104,7 +110,7 @@ function doGet(e) {
           synopsis: "Obra '" + parsed.title + "', de " + parsed.author + ". Disponível na sua biblioteca pessoal conectada ao Google Drive.",
           fileName: name,
           driveUrl: "https://drive.google.com/file/d/" + fileId + "/view?usp=sharing",
-          downloadUrl: "https://drive.google.com/uc?export=download&id=" + fileId,
+          downloadUrl: "https://drive.usercontent.google.com/download?id=" + fileId + "&export=download",
           // Thumbnail oficial do Google Drive para pré-visualização (útil para PDFs)
           thumbnailUrl: "https://drive.google.com/thumbnail?id=" + fileId + "&sz=w600"
         });
