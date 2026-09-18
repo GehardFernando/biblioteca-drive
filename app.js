@@ -449,7 +449,7 @@ function renderBooks() {
     const coverSrc = book.cover || defaultFallbackCover;
     
     return `
-      <article class="book-card" data-id="${book.id}" role="button" tabindex="0" aria-label="Ver detalhes de ${book.title}">
+      <article class="book-card" data-id="${book.id}" onclick="handleCardClick(event, '${book.id}')" role="button" tabindex="0" aria-label="Ver detalhes de ${book.title}">
         <div class="book-card-cover-wrapper">
           <img class="book-card-cover" src="${coverSrc}" alt="Capa de ${book.title}" loading="lazy" onerror="handleCoverError(this)" />
           <span class="format-badge ${formatClass}">${book.format}</span>
@@ -464,7 +464,7 @@ function renderBooks() {
 
           <div class="book-card-footer">
             <span class="book-card-size">${book.size}</span>
-            <button class="btn-download-quick" data-download-id="${book.id}" title="Baixar ${book.title}">
+            <button class="btn-download-quick" data-download-id="${book.id}" onclick="handleQuickDownload(event, '${book.id}')" title="Baixar ${book.title}">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="7 10 12 15 17 10"></polyline>
@@ -524,29 +524,33 @@ function getFilteredAndSortedBooks() {
     });
 }
 
-// Ação centralizada disparada por clique ou toque no card
-function handleCardAction(target) {
-  if (!target) return;
-
-  // Se clicou no botão de download rápido
-  const quickBtn = target.closest(".btn-download-quick");
-  if (quickBtn) {
-    const bookId = quickBtn.getAttribute("data-download-id") || quickBtn.closest(".book-card")?.getAttribute("data-id");
-    if (bookId) triggerDownload(bookId);
+// Manipulador direto e infalível de clique nos cards (Mobile e Desktop)
+window.handleCardClick = function(event, bookId) {
+  if (event && event.target && event.target.closest(".btn-download-quick")) {
     return;
   }
+  openBookModal(bookId);
+};
 
-  // Caso contrário, abre o modal de detalhes
-  const card = target.closest(".book-card");
-  if (card) {
-    const bookId = card.getAttribute("data-id");
-    if (bookId) openBookModal(bookId);
+window.handleQuickDownload = function(event, bookId) {
+  if (event) {
+    event.stopPropagation();
   }
-}
+  triggerDownload(bookId);
+};
 
-// Eventos de Cards (compatibilidade)
+// Eventos de Cards
 function attachCardEvents() {
-  // A manipulação é feita por delegação de eventos centralizada no booksContainer
+  document.querySelectorAll(".book-card").forEach(card => {
+    card.onclick = (e) => {
+      if (e.target && e.target.closest(".btn-download-quick")) {
+        e.stopPropagation();
+        return;
+      }
+      const bookId = card.getAttribute("data-id");
+      if (bookId) openBookModal(bookId);
+    };
+  });
 }
 
 // Abrir Modal
@@ -777,49 +781,6 @@ function setupEventListeners() {
     renderBooks();
   });
 
-  // Delegação Unificada nos Cards (Mobile Touch + Desktop Click)
-  let touchStartX = 0;
-  let touchStartY = 0;
-  let touchStartTime = 0;
-  let isScrolling = false;
-  let lastTouchTime = 0;
-
-  booksContainer.addEventListener("touchstart", (e) => {
-    if (e.touches.length === 1) {
-      touchStartX = e.touches[0].clientX;
-      touchStartY = e.touches[0].clientY;
-      touchStartTime = Date.now();
-      isScrolling = false;
-    }
-  }, { passive: true });
-
-  booksContainer.addEventListener("touchmove", (e) => {
-    if (e.touches.length === 1) {
-      const deltaX = Math.abs(e.touches[0].clientX - touchStartX);
-      const deltaY = Math.abs(e.touches[0].clientY - touchStartY);
-      if (deltaX > 8 || deltaY > 8) {
-        isScrolling = true;
-      }
-    }
-  }, { passive: true });
-
-  booksContainer.addEventListener("touchend", (e) => {
-    if (!isScrolling && e.changedTouches.length === 1) {
-      const duration = Date.now() - touchStartTime;
-      // Toque intencional rápido
-      if (duration < 380) {
-        lastTouchTime = Date.now();
-        handleCardAction(e.target);
-      }
-    }
-  });
-
-  booksContainer.addEventListener("click", (e) => {
-    // Se acabou de ser acionado por toque nos últimos 450ms, ignora o clique sintético
-    if (Date.now() - lastTouchTime < 450) return;
-    handleCardAction(e.target);
-  });
-
   // Acessibilidade via teclado nos cards
   booksContainer.addEventListener("keydown", (e) => {
     if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("book-card")) {
@@ -830,16 +791,12 @@ function setupEventListeners() {
   });
 
   // Fechar Modal
-  modalCloseBtn.addEventListener("click", closeBookModal);
-  modalCloseBtn.addEventListener("touchend", (e) => {
-    e.preventDefault();
-    closeBookModal();
-  });
-  bookModal.addEventListener("click", (e) => {
+  modalCloseBtn.onclick = closeBookModal;
+  bookModal.onclick = (e) => {
     if (e.target === bookModal) {
       closeBookModal();
     }
-  });
+  };
 
   // Botão de Sincronizar com o Google Drive
   const syncDriveBtn = document.getElementById("syncDriveBtn");
