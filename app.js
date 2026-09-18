@@ -175,6 +175,13 @@ const mockBooks = [
   }
 ];
 
+// ==========================================================================
+// Configuração de Integração com o Google Drive
+// Cole abaixo a URL do seu App da Web gerada no Google Apps Script (script.google.com)
+// Exemplo: "https://script.google.com/macros/s/AKfycbx.../exec"
+// ==========================================================================
+const GOOGLE_DRIVE_API_URL = "";
+
 // Estado da Aplicação
 let currentCategory = "all";
 let currentSearch = "";
@@ -185,12 +192,46 @@ let isListView = false;
 const PAGE_SIZE = 36;
 let visibleCount = PAGE_SIZE;
 
-// Catálogo ativo (livros reais extraídos ou mock fallback)
-let allBooks = (typeof window !== "undefined" && window.REAL_BOOKS && window.REAL_BOOKS.length > 0)
-  ? window.REAL_BOOKS
-  : mockBooks;
+// Mapa de capas locais pré-indexadas (para reutilizar capas de alta definição nos livros do Drive)
+const localCoversMap = new Map();
+if (typeof window !== "undefined" && Array.isArray(window.REAL_BOOKS)) {
+  window.REAL_BOOKS.forEach(b => {
+    if (b.title && b.cover) {
+      localCoversMap.set(b.title.toLowerCase().trim(), b.cover);
+      if (b.fileName) localCoversMap.set(b.fileName.toLowerCase().trim(), b.cover);
+    }
+  });
+}
 
-// Fallback visual elegante para capas com erro ou indisponíveis
+// Catálogo ativo (com suporte a cache do Drive, dados locais ou fallback mock)
+let allBooks = (() => {
+  if (typeof window !== "undefined") {
+    const cached = localStorage.getItem("drive_books_cache");
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    if (window.REAL_BOOKS && window.REAL_BOOKS.length > 0) {
+      return window.REAL_BOOKS;
+    }
+  }
+  return mockBooks;
+})();
+
+// Gerador de capas visuais elegantes para livros adicionados ao Drive sem capa local
+function generateDynamicCoverSvg(title, author, format) {
+  const safeTitle = (title || "Sem Título").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const safeAuthor = (author || "Autor Desconhecido").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const isPdf = (format || "").toUpperCase() === "PDF";
+  const gradStart = isPdf ? "%23dc2626" : "%234f46e5";
+  const gradEnd = isPdf ? "%23991b1b" : "%231e1b4b";
+
+  return `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='420' viewBox='0 0 300 420'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='${gradStart}'/><stop offset='100%25' stop-color='${gradEnd}'/></linearGradient></defs><rect width='300' height='420' fill='url(%23g)'/><rect x='10' y='10' width='280' height='400' rx='8' fill='none' stroke='%23ffffff' stroke-opacity='0.15' stroke-width='1.5'/><circle cx='150' cy='130' r='36' fill='%23ffffff' fill-opacity='0.1'/><path d='M140 140v-20a2 2 0 0 1 2-2h16v22h-16a2 2 0 0 1-2-2Z' fill='%23ffffff' fill-opacity='0.8'/><text x='150' y='210' font-family='system-ui, -apple-system, sans-serif' font-size='16' font-weight='800' fill='%23ffffff' text-anchor='middle'>${encodeURIComponent(safeTitle.substring(0, 32))}</text><text x='150' y='250' font-family='system-ui, -apple-system, sans-serif' font-size='12' font-weight='500' fill='%23cbd5e1' text-anchor='middle'>${encodeURIComponent(safeAuthor.substring(0, 26))}</text><rect x='115' y='320' width='70' height='24' rx='12' fill='%23ffffff' fill-opacity='0.15'/><text x='150' y='336' font-family='system-ui, -apple-system, sans-serif' font-size='10' font-weight='700' fill='%23ffffff' text-anchor='middle'>${format || 'EPUB'}</text></svg>`;
+}
+
+// Fallback visual para capas com erro de carregamento
 const defaultFallbackCover = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='420' viewBox='0 0 300 420'><rect width='300' height='420' fill='%23111726'/><rect x='12' y='12' width='276' height='396' rx='8' fill='%230f1422' stroke='%236366f1' stroke-width='1.5' stroke-dasharray='4 4'/><circle cx='150' cy='175' r='40' fill='%236366f1' fill-opacity='0.15'/><path d='M138 185v-20a2 2 0 0 1 2-2h20v22h-20a2 2 0 0 1-2-2Z' fill='%236366f1'/><text x='150' y='240' font-family='sans-serif' font-size='14' font-weight='700' fill='%23ffffff' text-anchor='middle'>Let%27s Be Readers</text><text x='150' y='265' font-family='sans-serif' font-size='11' fill='%2394a3b8' text-anchor='middle'>Capa indispon%C3%ADvel</text></svg>";
 
 function handleCoverError(imgElement) {
@@ -235,25 +276,69 @@ let toastTimeout;
 
 // Inicialização
 document.addEventListener("DOMContentLoaded", async () => {
-  // Se ainda estiver usando mockBooks e books.json estiver acessível via fetch, carrega
-  if (allBooks === mockBooks) {
+  // Render inicial com os dados disponíveis (cache ou locais)
+  buildCategoryPills();
+  renderBooks();
+  setupEventListeners();
+
+  // Sincronização em tempo real com o Google Drive
+  if (GOOGLE_DRIVE_API_URL && GOOGLE_DRIVE_API_URL.trim() !== "") {
+    syncWithGoogleDrive();
+  } else if (allBooks === mockBooks) {
+    // Fallback de desenvolvimento caso esteja sem Drive e sem books-data.js
     try {
       const res = await fetch("books.json");
       if (res.ok) {
         const jsonBooks = await res.json();
         if (Array.isArray(jsonBooks) && jsonBooks.length > 0) {
           allBooks = jsonBooks;
+          buildCategoryPills();
+          renderBooks();
         }
       }
-    } catch (e) {
-      // Fetch pode falhar no protocolo file:// sem servidor web, o que é esperado
-    }
+    } catch (e) {}
   }
-
-  buildCategoryPills();
-  renderBooks();
-  setupEventListeners();
 });
+
+// Sincronizar catálogo diretamente com a pasta do Google Drive
+async function syncWithGoogleDrive(forceRefresh = false) {
+  try {
+    const url = forceRefresh ? `${GOOGLE_DRIVE_API_URL}?refresh=1` : GOOGLE_DRIVE_API_URL;
+    const res = await fetch(url);
+    if (!res.ok) return;
+
+    const data = await res.json();
+    if (data && data.status === "success" && Array.isArray(data.books)) {
+      // Processar livros conectando com capas já conhecidas
+      const syncedBooks = data.books.map(driveBook => {
+        const titleKey = (driveBook.title || "").toLowerCase().trim();
+        const fileKey = (driveBook.fileName || "").toLowerCase().trim();
+        
+        // Tenta encontrar capa já extraída localmente
+        const matchedCover = localCoversMap.get(titleKey) || localCoversMap.get(fileKey);
+        const cover = matchedCover || driveBook.thumbnailUrl || generateDynamicCoverSvg(driveBook.title, driveBook.author, driveBook.format);
+
+        return {
+          ...driveBook,
+          cover: cover
+        };
+      });
+
+      if (syncedBooks.length > 0) {
+        allBooks = syncedBooks;
+        try {
+          localStorage.setItem("drive_books_cache", JSON.stringify(syncedBooks));
+        } catch (e) {}
+
+        buildCategoryPills();
+        renderBooks();
+        showToast(`Sincronizado com o Google Drive! (${syncedBooks.length} livros)`);
+      }
+    }
+  } catch (err) {
+    console.warn("Aviso na sincronização com o Google Drive:", err);
+  }
+}
 
 // Construir os Pills de Categorias com base nos dados reais
 function buildCategoryPills() {
@@ -481,12 +566,22 @@ function triggerDownload(bookId) {
   const downloadUrl = book.downloadUrl || (book.fileName ? `livros/${encodeURIComponent(book.fileName)}` : null);
 
   if (downloadUrl) {
-    const a = document.createElement("a");
-    a.href = downloadUrl;
-    a.download = book.fileName || `${book.title}.${(book.format || "epub").toLowerCase()}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    if (downloadUrl.startsWith("http")) {
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = book.fileName || `${book.title}.${(book.format || "epub").toLowerCase()}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
   }
 
   showToast(`Baixando: ${book.title} (${book.format})`);
