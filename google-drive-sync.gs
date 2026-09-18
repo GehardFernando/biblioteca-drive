@@ -72,8 +72,8 @@ function doGet(e) {
       const file = DriveApp.getFileById(e.parameter.fileId);
       const fileSize = file.getSize();
 
-      // Entrega o arquivo em base64 diretamente para o navegador do celular salvar na memória
-      if (fileSize <= 35 * 1024 * 1024) {
+      // Entrega o arquivo em base64 diretamente para o navegador do celular salvar na memória (arquivos até 12MB)
+      if (fileSize <= 12 * 1024 * 1024) {
         const blob = file.getBlob();
         return ContentService.createTextOutput(JSON.stringify({
           status: "success",

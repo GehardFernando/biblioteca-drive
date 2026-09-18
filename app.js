@@ -560,67 +560,103 @@ function closeBookModal() {
   document.body.style.overflow = "";
 }
 
-// Conversor de Base64 para Blob eficiente em memória
+// Conversor otimizado de Base64 para Blob (alocação única de memória)
 function base64ToBlob(base64, mimeType) {
-  const byteCharacters = atob(base64);
-  const byteArrays = [];
-  const sliceSize = 1024;
-  for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
-    const slice = byteCharacters.slice(offset, offset + sliceSize);
-    const byteNumbers = new Array(slice.length);
-    for (let i = 0; i < slice.length; i++) {
-      byteNumbers[i] = slice.charCodeAt(i);
-    }
-    byteArrays.push(new Uint8Array(byteNumbers));
+  const bin = atob(base64);
+  const len = bin.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = bin.charCodeAt(i);
   }
-  return new Blob(byteArrays, { type: mimeType });
+  return new Blob([bytes.buffer], { type: mimeType });
 }
 
 // Disparar Download Direto no Aparelho (sem abrir Google Drive ou pedir seleção de conta)
 async function triggerDownload(bookId) {
-  const book = allBooks.find(b => b.id === bookId);
+  const book = allBooks.find(b => String(b.id).trim() === String(bookId).trim());
   if (!book) return;
 
-  // 1. Se for um livro do Google Drive e a API estiver ativa:
-  // Baixamos os bytes diretamente pelo Apps Script e geramos um arquivo local (Blob) no navegador.
-  // Isso impede que o Android ou iOS exibam a tela de "Selecionar Conta do Google Drive"!
-  if (book.driveFileId && GOOGLE_DRIVE_API_URL) {
-    showToast(`Baixando direto: ${book.title}...`);
+  const fileName = book.fileName || `${book.title}.${(book.format || "epub").toLowerCase()}`;
+  showToast(`Baixando direto: ${book.title}...`);
+
+  // 1. Tentar download direto via CDN do Google Drive com Fetch + Blob
+  // O endpoint drive.usercontent.google.com possui cabeçalho CORS 'access-control-allow-origin: *',
+  // permitindo que o navegador baixe os bytes em alta velocidade em segundo plano para um Blob em memória,
+  // sem redirecionar para o app do Google Drive no Android e sem pedir seleção de conta!
+  if (book.driveFileId) {
+    const directUrl = `https://drive.usercontent.google.com/download?id=${book.driveFileId}&export=download`;
     try {
-      const res = await fetch(`${GOOGLE_DRIVE_API_URL}?action=download&fileId=${book.driveFileId}`);
+      const res = await fetch(directUrl);
       if (res.ok) {
-        const json = await res.json();
-        if (json.status === "success" && json.data) {
-          const blob = base64ToBlob(json.data, json.mimeType || "application/octet-stream");
-          const blobUrl = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = blobUrl;
-          a.download = json.fileName || book.fileName || `${book.title}.${(book.format || 'epub').toLowerCase()}`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
-          showToast(`Download concluído: ${book.title}!`);
-          return;
+        const contentType = res.headers.get("content-type") || "";
+        // Se a resposta for o arquivo real (e não uma página HTML intermediária)
+        if (!contentType.includes("text/html")) {
+          const blob = await res.blob();
+          if (blob && blob.size > 500) {
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = blobUrl;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+            showToast(`Download concluído: ${book.title}!`);
+            return;
+          }
         }
       }
-    } catch (err) {
-      console.warn("Fallback de download para arquivo externo:", err);
+    } catch (directErr) {
+      console.warn("Download via CDN direto encontrou restrição, usando proxy Apps Script:", directErr);
+    }
+
+    // 2. Fallback de contingência via proxy Apps Script
+    if (GOOGLE_DRIVE_API_URL) {
+      try {
+        const res = await fetch(`${GOOGLE_DRIVE_API_URL}?action=download&fileId=${book.driveFileId}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.status === "success" && json.data) {
+            const blob = base64ToBlob(json.data, json.mimeType || "application/octet-stream");
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = blobUrl;
+            a.download = json.fileName || fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+            showToast(`Download concluído: ${book.title}!`);
+            return;
+          } else if (json.downloadUrl) {
+            // Se o arquivo exceder o limite do Base64, baixa pelo link direto
+            const a = document.createElement("a");
+            a.href = json.downloadUrl;
+            a.download = json.fileName || fileName;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { if (document.body.contains(a)) document.body.removeChild(a); }, 1000);
+            return;
+          }
+        }
+      } catch (proxyErr) {
+        console.warn("Proxy Apps Script indisponível:", proxyErr);
+      }
     }
   }
 
-  // 2. Fallback para arquivos locais ou links diretos
+  // 3. Fallback para arquivos locais ou links diretos
   const downloadUrl = book.downloadUrl || (book.fileName ? `livros/${encodeURIComponent(book.fileName)}` : null);
   if (downloadUrl) {
-    showToast(`Baixando: ${book.title} (${book.format})`);
     const a = document.createElement("a");
     a.href = downloadUrl;
-    a.download = book.fileName || `${book.title}.${(book.format || "epub").toLowerCase()}`;
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
     setTimeout(() => {
       if (document.body.contains(a)) document.body.removeChild(a);
     }, 1000);
+    showToast(`Download iniciado: ${book.title}`);
   }
 }
 
