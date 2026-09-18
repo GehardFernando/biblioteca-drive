@@ -1,28 +1,32 @@
 # 📚 Let's Be Readers — Status do Projeto
 
-> **Conceito:** Biblioteca digital pessoal moderna para catálogo, busca e download de livros (EPUB, PDF) armazenados no Google Drive.  
-> **Localização do Projeto:** `/home/gehard-fernando/biblioteca-drive/`  
+> **Conceito:** Biblioteca digital pessoal moderna para catálogo, busca e download de livros (EPUB, PDF) sincronizada em tempo real com o Google Drive.  
+> **Repositório GitHub:** [github.com/GehardFernando/biblioteca-drive](https://github.com/GehardFernando/biblioteca-drive)  
+> **Site no Ar (GitHub Pages):** [gehardfernando.github.io/biblioteca-drive](https://gehardfernando.github.io/biblioteca-drive/)  
 > **Última Atualização:** 18 de Setembro de 2026  
 
 ---
 
-## 📌 Onde Paramos
+## 📌 Status Atual: Fases Concluídas
 
-Concluímos a **Fase 1: Design de Interface e Prototipagem Visual (HTML, CSS e JavaScript)**.
+### ✅ Fase 1: Design de Interface & Responsividade Mobile
+- **Design System Dark Minimalista (Moderno & Tech):** Fundo obsidiana (`#0a0e17`), superfícies em grafite (`#111726`), efeitos de *glassmorphism*, ambient glow e sombras realistas nas capas.
+- **Mobile-First & Ajuste de Dimensões:**
+  - Travamento de overflow no `html` e `body` evitando zoom out indesejado em celulares.
+  - Grade equilibrada em 2 colunas no smartphone com `min-width: 0` e quebra de títulos sem transbordamento.
+  - Carrossel de categorias touch deslizável sem margens negativas que causem vazamento lateral.
+  - Breakpoint expandido para 768px (tablets e smartphones) com regra extra para telas compactas `<= 420px`.
+  - Suporte a `viewport-fit=cover` para entalhes/notches de iPhone e Android.
 
-O protótipo visual está 100% funcional no navegador com dados de exemplo (mockados), permitindo testar toda a usabilidade antes de integrar com a API do Google Drive.
-
----
-
-## 🎨 Design e Identidade Visual (Estilo A)
-
-* **Estilo Escolhido:** **Dark Minimalista (Moderno & Tech)**.
-* **Paleta de Cores:** Fundo escuro profundo (tons grafite/obsidiana `#0a0e17` e `#111726`), acentos em índigo/violeta (`#6366f1`) e ciano elétrico (`#06b6d4`).
-* **Efeitos Visuais:** 
-  * Efeito de vidro (*glassmorphism*) com *backdrop blur* na navbar e no modal.
-  * Luzes ambientes sutis no fundo (*ambient glow*).
-  * Capas de livros com sombras realistas e elevação ao passar o mouse (*hover 3D*).
-  * Badges distintos para formatos: **EPUB** (verde-esmeralda) e **PDF** (coral/vermelho).
+### ✅ Fase 2: Publicação & Integração com Google Drive
+- **Versionamento no GitHub:** Repositório inicializado, `.gitignore` seguro protegendo arquivos pesados e branch `main` publicada.
+- **Deploy no GitHub Pages:** Publicação automática online e acessível de qualquer dispositivo.
+- **Sincronização em Tempo Real (Google Apps Script):**
+  - Script [`google-drive-sync.gs`](./google-drive-sync.gs) conectado à pasta oficial do Drive (`1Cm-w4noHBr2FeF9ypnzgM6lAKvPob9Of`).
+  - Catálogo de **579 livros** indexados e lidos diretamente do Google Drive.
+  - Carregamento instantâneo via cache local (`localStorage`) no navegador do celular/PC.
+  - Botão de **Sincronização Manual** no cabeçalho com animação e notificação toast.
+  - Download direto dos arquivos pelo Google Drive.
 
 ---
 
@@ -30,79 +34,70 @@ O protótipo visual está 100% funcional no navegador com dados de exemplo (mock
 
 | Arquivo | Descrição |
 | :--- | :--- |
-| [`index.html`](./index.html) | Estrutura semântica completa: navbar, hero, barra de filtros, grid de livros, paginação fluida e modal de detalhes. |
-| [`style.css`](./style.css) | Folha de estilo com variáveis CSS, layout responsivo (desktop e mobile touch), botões e animações. |
-| [`app.js`](./app.js) | Lógica de interação: busca instantânea em 579 livros, categorias dinâmicas, paginação de 36 em 36 e download real. |
-| [`scan_books.py`](./scan_books.py) | Script de indexação que lê os arquivos EPUB, extrai as capas reais, sinopses e metadados. |
-| [`books.json`](./books.json) | Base de dados estruturada contendo todos os 579 livros indexados. |
-| [`books-data.js`](./books-data.js) | Carregamento assíncrono dos livros sem restrições de CORS para execução local direta. |
-| [`capas/`](./capas/) | Diretório com mais de 560 capas reais extraídas dos arquivos EPUB. |
-| [`livros`](./livros) | Symlink apontando para os arquivos de livros reais para permitir download direto pelo navegador. |
-| [`PROJETO_STATUS.md`](./PROJETO_STATUS.md) | Este documento de documentação e planejamento do projeto. |
+| [`index.html`](./index.html) | Estrutura semântica: header com busca instantânea, botão de sincronização, filtros, grid de livros e modal de detalhes. |
+| [`style.css`](./style.css) | Sistema de design completo e responsivo (desktop, tablet, mobile) sem dependências externas. |
+| [`app.js`](./app.js) | Lógica da aplicação: integração com Google Apps Script, cache, busca instantânea (`/`), paginação fluida e downloads. |
+| [`google-drive-sync.gs`](./google-drive-sync.gs) | Script do Google Apps Script para leitura contínua e em tempo real da pasta do Google Drive. |
+| [`scan_books.py`](./scan_books.py) | Indexador Python local para extração de capas em alta resolução de arquivos EPUB. |
+| [`books.json`](./books.json) & [`books-data.js`](./books-data.js) | Base de dados estruturada com 579 livros e fallback offline. |
+| [`capas/`](./capas/) | Diretório com mais de 560 capas reais extraídas dos livros. |
+| [`.gitignore`](./.gitignore) | Proteção para não subir arquivos binários pesados de livros para o repositório Git. |
+| [`PROJETO_STATUS.md`](./PROJETO_STATUS.md) | Documentação de status e arquitetura do projeto. |
 
 ---
 
-## 🚀 Funcionalidades Já Implementadas (Front-end)
+## 🛡️ Próxima Etapa: Segurança & Controle de Acesso por Dispositivo
 
-1. **Barra de Navegação Superior:**
-   * Marca atualizada: **Let's Be Readers** (*Nuvem Pessoal*).
-   * **Barra de busca inteligente:** filtra instantaneamente por título, autor ou gênero.
-   * Atalho de teclado: ao pressionar `/`, o campo de busca ganha foco imediatamente.
-   * Contador dinâmico de livros com indicador de status em tempo real.
+> **Objetivo:** Restringir o acesso à biblioteca para **apenas 3 pessoas**, garantindo que o acesso venha exclusivamente dos seus aparelhos físicos autorizados, sem risco de compartilhamento de links.
 
-2. **Filtros e Controles de Exibição:**
-   * **Pills de Filtro Rápido:** `Todos`, `EPUB`, `PDF`, `Tecnologia`, `Ficção Científica`, `Filosofia` e `Produtividade`.
-   * **Ordenação:** `Mais recentes`, `Título (A-Z)`, `Título (Z-A)`, `Autor (A-Z)` e `Maior tamanho`.
-   * **Alternador de Visualização:**
-     * **Modo Grade:** estante com foco nas capas grandes e estilo cartão.
-     * **Modo Lista:** listagem horizontal compacta e rápida para escanear muitos títulos.
+### Arquitetura Planejada: Convites de Uso Único (*One-Time Invite Links*) + Whitelist de Dispositivos
 
-3. **Cards de Livros:**
-   * Exibição de capa, categoria, título (com reticências automáticas em títulos longos), autor e tamanho.
-   * Botão de **Download Rápido** em cada card.
-   * Clique no card para abrir o modal de detalhes completos.
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Convidado (Celular)
+    participant Site as Site (GitHub Pages)
+    participant GAS as Google Apps Script (Drive)
+    
+    Note over User,GAS: 1. Primeiro Acesso (Ativação Única)
+    User->>Site: Clica no link exclusivo (?convite=CODIGO_UNICO)
+    Site->>Site: Gera um identificador único de dispositivo (UUID)
+    Site->>GAS: Solicita validação do convite + registra dispositivo
+    alt Convite Válido e Não Utilizado
+        GAS->>GAS: Queima o convite (usado = true)
+        GAS->>GAS: Salva o aparelho na Whitelist permanente
+        GAS-->>Site: Autorizado com sucesso!
+        Site->>Site: Salva chave no aparelho (localStorage) e limpa a URL
+        Site->>User: Libera a biblioteca completa!
+    else Convite Já Utilizado / Inválido
+        GAS-->>Site: Erro: convite já expirado
+        Site->>User: Tela de Bloqueio ("Link já utilizado em outro aparelho")
+    end
 
-4. **Modal de Detalhes:**
-   * Capa ampliada em alta resolução.
-   * Sinopse completa da obra.
-   * Grid com metadados: formato, data de adição no Drive e páginas estimadas.
-   * Botões de ação: **"Baixar Livro"** e **"Abrir no Drive"**.
+    Note over User,GAS: 2. Próximos Acessos (Automático)
+    User->>Site: Abre o site diretamente
+    Site->>GAS: Consulta livros enviando a Chave do Dispositivo
+    alt Dispositivo cadastrado na Whitelist
+        GAS-->>Site: Retorna os livros e links do Drive
+    else Dispositivo Não Autorizado
+        GAS-->>Site: Acesso Negado (403)
+        Site->>User: Exibe tela de bloqueio ("Dispositivo não autorizado")
+    end
+```
 
-5. **Feedbacks Visuais e Estados:**
-   * Notificação flutuante (*Toast*) confirmando o início do download.
-   * Tela de **Estado Vazio (Empty State)** caso nenhuma busca ou filtro encontre resultados, com botão para "Limpar filtros".
-
-6. **Experiência Mobile Completa (Smartphones e Tablets):**
-   * **Header Adaptativo (Grid de 2 linhas):** Marca e indicador de status no topo lado a lado; campo de busca ocupando 100% da largura logo abaixo.
-   * **Carrossel de Categorias Touch:** Filtros em barra deslizável horizontalmente (sem quebra de linha excessiva), estilo apps nativos (YouTube/Spotify).
-   * **Grid de 2 Colunas no Smartphone:** Livros dispostos em 2 colunas equilibradas com capas e tipografia escaladas perfeitamente para telas de celulares.
-   * **Modo Lista Mobile:** Formatação compacta e fluida que não espreme os títulos.
-   * **Modal e Toasts Otimizados:** Modal com rolagem suave, botões com área de toque recomendada (min 44px) e toast centralizado na parte inferior da tela.
-   * **Meta Tags PWA/Mobile:** Suporte a `theme-color` `#0a0e17` para barra de status nativa no Android/iOS.
-
----
-
-## 🧭 Próximos Passos (Para onde vamos agora)
-
-Quando você quiser dar continuidade, as próximas etapas planejadas são:
-
-1. **Ajustes Visuais (se necessário):**
-   * Avaliar se deseja adicionar mais seções (ex: "Continuar lendo", leitor online de EPUB/PDF no navegador, ou suporte a modo claro).
-2. **Definição da Integração com o Google Drive:**
-   * **Opção A (Jamstack / Estático):** Criar um script (em Python ou Node.js) que você roda para escanear sua pasta do Google Drive, extrair os nomes/capas/links e gerar o `books.json` que alimenta o site.
-   * **Opção B (API Dinâmica em Tempo Real):** Configurar uma *Service Account* no Google Cloud para conectar a pasta do Drive diretamente a um backend ou função serverless.
-3. **Conexão dos Livros Reais:**
-   * Substituir a lista de livros de teste (`mockBooks` no `app.js`) pelos seus arquivos reais do Google Drive.
-4. **Hospedagem / Publicação Online:**
-   * Publicar gratuitamente na Vercel, Cloudflare Pages ou GitHub Pages para você acessar de qualquer dispositivo (celular, tablet, computador).
+### Principais Características da Solução:
+1. **O link queima no primeiro clique:** Cada pessoa recebe um link único (ex: `site.com/?convite=COD_AMIGO1`). Assim que o celular abre o link, o convite é invalidado no Google Apps Script. Se tentarem repassar o link em grupos ou para outras pessoas, ele não funcionará.
+2. **Identificação por Aparelho:** O navegador do aparelho autorizado armazena um token criptográfico local. Apenas aquele celular/navegador consegue carregar a biblioteca.
+3. **Tela de Bloqueio Elegante (Dark Glassmorphism):** Qualquer acesso que não possua dispositivo autorizado na whitelist se depara com uma tela de bloqueio informando que a biblioteca é privada.
+4. **Proteção na API do Google Drive:** O script do Drive se recusa a entregar os livros e links se a requisição não vier de um dispositivo registrado na Whitelist.
+5. **Gerenciamento Centralizado:** O proprietário pode resetar convites ou remover dispositivos a qualquer momento diretamente pelo Google Apps Script (`PropertiesService`).
 
 ---
 
 ## 🖥️ Como rodar e visualizar localmente
 
-Abra no terminal:
 ```bash
 cd ~/biblioteca-drive
 python3 -m http.server 3000
 ```
-E acesse no seu navegador: `http://localhost:3000` ou abra direto o arquivo `file:///home/gehard-fernando/biblioteca-drive/index.html`.
+Acesse `http://localhost:3000` ou pelo IP local na sua rede Wi-Fi `http://192.168.15.20:3000`.
