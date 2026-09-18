@@ -67,18 +67,6 @@ function formatBytes(bytes) {
 
 function doGet(e) {
   try {
-    const cache = CacheService.getScriptCache();
-    const forceRefresh = e && e.parameter && e.parameter.refresh === "1";
-    
-    // Verifica cache (se não for forçado o refresh)
-    if (!forceRefresh) {
-      const cachedData = cache.get("drive_books_catalog");
-      if (cachedData) {
-        return ContentService.createTextOutput(cachedData)
-          .setMimeType(ContentService.MimeType.JSON);
-      }
-    }
-
     const folder = DriveApp.getFolderById(FOLDER_ID);
     const files = folder.getFiles();
     const books = [];
@@ -117,7 +105,7 @@ function doGet(e) {
           fileName: name,
           driveUrl: "https://drive.google.com/file/d/" + fileId + "/view?usp=sharing",
           downloadUrl: "https://drive.google.com/uc?export=download&id=" + fileId,
-          // Thumbnail oficial do Google Drive para pré-visualização (ótimo para PDFs e capas sincronizadas)
+          // Thumbnail oficial do Google Drive para pré-visualização (útil para PDFs)
           thumbnailUrl: "https://drive.google.com/thumbnail?id=" + fileId + "&sz=w600"
         });
       }
@@ -135,12 +123,7 @@ function doGet(e) {
       books: books
     };
 
-    const jsonString = JSON.stringify(result);
-    
-    // Armazena no cache por 10 minutos (600 segundos) para carregamento instantâneo
-    cache.put("drive_books_catalog", jsonString, 600);
-
-    return ContentService.createTextOutput(jsonString)
+    return ContentService.createTextOutput(JSON.stringify(result))
       .setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {

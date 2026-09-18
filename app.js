@@ -180,7 +180,7 @@ const mockBooks = [
 // Cole abaixo a URL do seu App da Web gerada no Google Apps Script (script.google.com)
 // Exemplo: "https://script.google.com/macros/s/AKfycbx.../exec"
 // ==========================================================================
-const GOOGLE_DRIVE_API_URL = "";
+const GOOGLE_DRIVE_API_URL = "https://script.google.com/macros/s/AKfycbwGk2epbZ3thFo8ZJhHQDLUEZffTRobl657b6hGKMXNJUXUBtn9cSVUtgIDoHhzaW4rww/exec";
 
 // Estado da Aplicação
 let currentCategory = "all";
