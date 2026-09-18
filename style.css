@@ -956,6 +956,15 @@ body {
   display: flex;
   gap: 14px;
   margin-top: auto;
+  width: 100%;
+}
+
+.btn-block {
+  width: 100%;
+  justify-content: center;
+  padding: 13px 20px;
+  font-size: 0.96rem;
+  border-radius: 12px;
 }
 
 /* ==========================================================================

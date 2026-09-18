@@ -267,7 +267,6 @@ const modalFormat = document.getElementById("modalFormat");
 const modalAddedDate = document.getElementById("modalAddedDate");
 const modalPages = document.getElementById("modalPages");
 const modalDownloadBtn = document.getElementById("modalDownloadBtn");
-const modalDriveBtn = document.getElementById("modalDriveBtn");
 
 // Toast
 const toastNotification = document.getElementById("toastNotification");
@@ -530,40 +529,9 @@ function openBookModal(bookId) {
   modalPages.textContent = `${book.pages} págs`;
 
   // Configurar ação de download no modal
-  const downloadUrl = book.downloadUrl || (book.fileName ? `livros/${encodeURIComponent(book.fileName)}` : null);
-  if (downloadUrl) {
-    modalDownloadBtn.href = downloadUrl;
-    if (downloadUrl.startsWith("http")) {
-      modalDownloadBtn.target = "_blank";
-      modalDownloadBtn.rel = "noopener noreferrer";
-      modalDownloadBtn.removeAttribute("download");
-      modalDownloadBtn.onclick = () => {
-        showToast(`Baixando: ${book.title} (${book.format})`);
-      };
-    } else {
-      modalDownloadBtn.target = "_self";
-      modalDownloadBtn.setAttribute("download", book.fileName || `${book.title}.${(book.format || "epub").toLowerCase()}`);
-      modalDownloadBtn.onclick = () => {
-        showToast(`Baixando: ${book.title} (${book.format})`);
-      };
-    }
-  }
-
-  // Botão secundário: se tiver driveUrl usa drive, senão aciona download direto
-  if (book.driveUrl) {
-    modalDriveBtn.href = book.driveUrl;
-    modalDriveBtn.target = "_blank";
-    modalDriveBtn.rel = "noopener noreferrer";
-    modalDriveBtn.removeAttribute("download");
-    modalDriveBtn.querySelector("span").textContent = "Abrir no Drive";
-    modalDriveBtn.onclick = null;
-  } else {
-    modalDriveBtn.href = downloadUrl || "#";
-    modalDriveBtn.target = "_blank";
-    modalDriveBtn.setAttribute("download", book.fileName || `${book.title}.epub`);
-    modalDriveBtn.querySelector("span").textContent = "Download Direto";
-    modalDriveBtn.onclick = () => triggerDownload(book.id);
-  }
+  modalDownloadBtn.onclick = () => {
+    triggerDownload(book.id);
+  };
 
   bookModal.classList.remove("hidden");
   document.body.style.overflow = "hidden"; // trava rolagem de fundo
@@ -575,31 +543,40 @@ function closeBookModal() {
   document.body.style.overflow = "";
 }
 
-// Disparar Download com Suporte a Arquivo Local / Real
+// Disparar Download Direto no Aparelho (sem abrir Google Drive ou abas extras)
 function triggerDownload(bookId) {
   const book = allBooks.find(b => b.id === bookId);
   if (!book) return;
 
   const downloadUrl = book.downloadUrl || (book.fileName ? `livros/${encodeURIComponent(book.fileName)}` : null);
+  if (!downloadUrl) return;
 
-  if (downloadUrl) {
-    if (downloadUrl.startsWith("http")) {
-      const a = document.createElement("a");
-      a.href = downloadUrl;
-      a.target = "_blank";
-      a.rel = "noopener noreferrer";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } else {
-      const a = document.createElement("a");
-      a.href = downloadUrl;
-      a.download = book.fileName || `${book.title}.${(book.format || "epub").toLowerCase()}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    }
+  showToast(`Baixando: ${book.title} (${book.format})`);
+
+  // Disparo silencioso via iframe oculto: faz o navegador salvar o arquivo diretamente
+  // na pasta de Downloads do celular/PC, sem abrir abas novas e sem acionar o app do Google Drive
+  let iframe = document.getElementById("directDownloadIframe");
+  if (!iframe) {
+    iframe = document.createElement("iframe");
+    iframe.id = "directDownloadIframe";
+    iframe.style.display = "none";
+    document.body.appendChild(iframe);
   }
+  iframe.src = downloadUrl;
+
+  // Disparo complementar via link com atributo download
+  setTimeout(() => {
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    a.download = book.fileName || `${book.title}.${(book.format || "epub").toLowerCase()}`;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      if (document.body.contains(a)) document.body.removeChild(a);
+    }, 800);
+  }, 120);
+}
 
   showToast(`Baixando: ${book.title} (${book.format})`);
 }
