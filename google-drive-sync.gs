@@ -67,6 +67,30 @@ function formatBytes(bytes) {
 
 function doGet(e) {
   try {
+    // 1. Download Direto via API (Evita a tela do Google Drive de selecionar conta no celular)
+    if (e && e.parameter && e.parameter.action === "download" && e.parameter.fileId) {
+      const file = DriveApp.getFileById(e.parameter.fileId);
+      const fileSize = file.getSize();
+
+      // Entrega o arquivo em base64 diretamente para o navegador do celular salvar na memória
+      if (fileSize <= 35 * 1024 * 1024) {
+        const blob = file.getBlob();
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "success",
+          fileName: file.getName(),
+          mimeType: blob.getContentType() || "application/octet-stream",
+          data: Utilities.base64Encode(blob.getBytes())
+        })).setMimeType(ContentService.MimeType.JSON);
+      } else {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "direct",
+          downloadUrl: "https://drive.usercontent.google.com/download?id=" + e.parameter.fileId + "&export=download",
+          fileName: file.getName()
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
+    // 2. Listagem de Livros
     const folder = DriveApp.getFolderById(FOLDER_ID);
     
     // Tenta garantir que a pasta esteja visível para leitura com link

@@ -543,42 +543,68 @@ function closeBookModal() {
   document.body.style.overflow = "";
 }
 
-// Disparar Download Direto no Aparelho (sem abrir Google Drive ou abas extras)
-function triggerDownload(bookId) {
+// Conversor de Base64 para Blob eficiente em memória
+function base64ToBlob(base64, mimeType) {
+  const byteCharacters = atob(base64);
+  const byteArrays = [];
+  const sliceSize = 1024;
+  for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+    const slice = byteCharacters.slice(offset, offset + sliceSize);
+    const byteNumbers = new Array(slice.length);
+    for (let i = 0; i < slice.length; i++) {
+      byteNumbers[i] = slice.charCodeAt(i);
+    }
+    byteArrays.push(new Uint8Array(byteNumbers));
+  }
+  return new Blob(byteArrays, { type: mimeType });
+}
+
+// Disparar Download Direto no Aparelho (sem abrir Google Drive ou pedir seleção de conta)
+async function triggerDownload(bookId) {
   const book = allBooks.find(b => b.id === bookId);
   if (!book) return;
 
-  const downloadUrl = book.downloadUrl || (book.fileName ? `livros/${encodeURIComponent(book.fileName)}` : null);
-  if (!downloadUrl) return;
-
-  showToast(`Baixando: ${book.title} (${book.format})`);
-
-  // Disparo silencioso via iframe oculto: faz o navegador salvar o arquivo diretamente
-  // na pasta de Downloads do celular/PC, sem abrir abas novas e sem acionar o app do Google Drive
-  let iframe = document.getElementById("directDownloadIframe");
-  if (!iframe) {
-    iframe = document.createElement("iframe");
-    iframe.id = "directDownloadIframe";
-    iframe.style.display = "none";
-    document.body.appendChild(iframe);
+  // 1. Se for um livro do Google Drive e a API estiver ativa:
+  // Baixamos os bytes diretamente pelo Apps Script e geramos um arquivo local (Blob) no navegador.
+  // Isso impede que o Android ou iOS exibam a tela de "Selecionar Conta do Google Drive"!
+  if (book.driveFileId && GOOGLE_DRIVE_API_URL) {
+    showToast(`Baixando direto: ${book.title}...`);
+    try {
+      const res = await fetch(`${GOOGLE_DRIVE_API_URL}?action=download&fileId=${book.driveFileId}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.status === "success" && json.data) {
+          const blob = base64ToBlob(json.data, json.mimeType || "application/octet-stream");
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = blobUrl;
+          a.download = json.fileName || book.fileName || `${book.title}.${(book.format || 'epub').toLowerCase()}`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+          showToast(`Download concluído: ${book.title}!`);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Fallback de download para arquivo externo:", err);
+    }
   }
-  iframe.src = downloadUrl;
 
-  // Disparo complementar via link com atributo download
-  setTimeout(() => {
+  // 2. Fallback para arquivos locais ou links diretos
+  const downloadUrl = book.downloadUrl || (book.fileName ? `livros/${encodeURIComponent(book.fileName)}` : null);
+  if (downloadUrl) {
+    showToast(`Baixando: ${book.title} (${book.format})`);
     const a = document.createElement("a");
     a.href = downloadUrl;
     a.download = book.fileName || `${book.title}.${(book.format || "epub").toLowerCase()}`;
-    a.style.display = "none";
     document.body.appendChild(a);
     a.click();
     setTimeout(() => {
       if (document.body.contains(a)) document.body.removeChild(a);
-    }, 800);
-  }, 120);
-}
-
-  showToast(`Baixando: ${book.title} (${book.format})`);
+    }, 1000);
+  }
 }
 
 // Notificação Toast
