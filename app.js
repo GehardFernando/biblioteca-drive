@@ -669,4 +669,15 @@ function setupEventListeners() {
       closeBookModal();
     }
   });
+
+  // Botão de Sincronizar com o Google Drive
+  const syncDriveBtn = document.getElementById("syncDriveBtn");
+  if (syncDriveBtn) {
+    syncDriveBtn.addEventListener("click", async () => {
+      syncDriveBtn.classList.add("spinning");
+      showToast("Sincronizando com o Google Drive...");
+      await syncWithGoogleDrive(true);
+      syncDriveBtn.classList.remove("spinning");
+    });
+  }
 }
