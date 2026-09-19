@@ -735,6 +735,56 @@ body.modal-open {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
+.btn-kindle {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #0b0f19;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+  border: none;
+}
+
+.btn-kindle:hover {
+  background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
+  color: #000;
+}
+
+.btn-kindle-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  border-radius: 9999px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: inherit;
+}
+
+.btn-kindle-nav:hover {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: rgba(245, 158, 11, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.3);
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.btn-outline:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
 /* Container e Botão Carregar Mais */
 .load-more-container {
   display: flex;
@@ -1040,6 +1090,238 @@ body.modal-open {
   padding: 13px 20px;
   font-size: 0.96rem;
   border-radius: 12px;
+}
+
+/* ==========================================================================
+   Kindle Assistant Modal
+   ========================================================================== */
+.kindle-modal-card {
+  max-width: 520px;
+  padding: 32px;
+}
+
+.kindle-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.kindle-badge-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.kindle-modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+
+.kindle-modal-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.kindle-book-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  gap: 12px;
+}
+
+.kindle-book-summary-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.kindle-book-title {
+  font-size: 0.94rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kindle-book-author {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kindle-book-meta {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 3px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.kindle-methods-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.kindle-method-card {
+  padding: 18px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-subtle);
+  transition: all var(--transition-fast);
+}
+
+.kindle-method-card.active-method {
+  background: rgba(245, 158, 11, 0.04);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.method-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.method-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #000;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.method-header h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.method-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin-bottom: 14px;
+}
+
+.kindle-steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.step-number {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.step-text {
+  font-size: 0.84rem;
+  color: var(--text-primary);
+}
+
+.kindle-region-selector {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  gap: 10px;
+}
+
+.kindle-region-selector label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.kindle-region-selector select {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+
+.kindle-email-wrapper {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.kindle-email-wrapper input {
+  flex: 1;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 9px 14px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-family: inherit;
+  outline: none;
+}
+
+.kindle-email-wrapper input:focus {
+  border-color: #f59e0b;
+}
+
+.btn-save-email {
+  padding: 0 16px;
+  border-radius: 10px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-save-email:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 /* ==========================================================================
@@ -1486,5 +1768,30 @@ body.modal-open {
   .modal-info-grid {
     grid-template-columns: 1fr;
     text-align: left;
+  }
+}
+
+/* Responsividade Kindle Componentes */
+@media (max-width: 580px) {
+  .kindle-modal-card {
+    padding: 24px 18px;
+    width: 94%;
+    margin: 16px auto;
+  }
+  .kindle-region-selector {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .kindle-region-selector select {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .btn-kindle-nav-text {
+    display: none;
+  }
+  .btn-kindle-nav {
+    padding: 7px;
   }
 }

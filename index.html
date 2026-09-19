@@ -53,6 +53,14 @@
 
       <!-- Ações do Header -->
       <div class="nav-actions">
+        <button class="btn-kindle-nav" id="headerKindleBtn" title="Abrir Amazon Send to Kindle Web">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+            <line x1="8" y1="18" x2="16" y2="18"></line>
+            <line x1="9" y1="6" x2="15" y2="6"></line>
+          </svg>
+          <span class="btn-kindle-nav-text">Kindle</span>
+        </button>
         <button class="btn-sync" id="syncDriveBtn" title="Atualizar Catálogo">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
@@ -220,7 +228,113 @@
               </svg>
               <span>Baixar Livro</span>
             </button>
+            <button class="btn btn-kindle btn-block" id="modalKindleBtn">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                <line x1="8" y1="18" x2="16" y2="18"></line>
+                <line x1="9" y1="6" x2="15" y2="6"></line>
+              </svg>
+              <span>Enviar para Kindle</span>
+            </button>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Assistente: Enviar para o Kindle -->
+  <div class="modal-backdrop hidden" id="kindleModal">
+    <div class="modal-card kindle-modal-card">
+      <button class="modal-close" id="kindleModalCloseBtn" aria-label="Fechar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+
+      <div class="kindle-modal-header">
+        <div class="kindle-badge-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+            <line x1="8" y1="18" x2="16" y2="18"></line>
+            <line x1="9" y1="6" x2="15" y2="6"></line>
+          </svg>
+        </div>
+        <div>
+          <h3 class="kindle-modal-title">Enviar para o Kindle</h3>
+          <p class="kindle-modal-subtitle">Transfira este livro sem fios para seu leitor físico ou app Kindle</p>
+        </div>
+      </div>
+
+      <div class="kindle-book-summary" id="kindleBookSummary">
+        <div class="kindle-book-summary-info">
+          <span class="kindle-book-title" id="kindleBookTitle">Título do Livro</span>
+          <span class="kindle-book-author" id="kindleBookAuthor">Por Autor</span>
+        </div>
+        <span class="kindle-book-meta" id="kindleBookMeta">EPUB</span>
+      </div>
+
+      <div class="kindle-methods-container">
+        <!-- Método 1: Envio Oficial Web (Mais Rápido e Recomendado) -->
+        <div class="kindle-method-card active-method">
+          <div class="method-header">
+            <span class="method-badge">Recomendado</span>
+            <h4>Amazon Send to Kindle Web</h4>
+          </div>
+          <p class="method-desc">O livro será baixado e abriremos a página oficial da Amazon para você arrastar ou selecionar o arquivo.</p>
+          
+          <div class="kindle-steps-list">
+            <div class="step-item">
+              <span class="step-number">1</span>
+              <span class="step-text">Baixar o arquivo <strong>.epub</strong> no seu dispositivo</span>
+            </div>
+            <div class="step-item">
+              <span class="step-number">2</span>
+              <span class="step-text">Soltar o arquivo na página da Amazon que abrirá</span>
+            </div>
+          </div>
+
+          <div class="kindle-region-selector">
+            <label for="kindleAmazonRegion">Região da Conta Amazon:</label>
+            <select id="kindleAmazonRegion">
+              <option value="https://www.amazon.com.br/sendtokindle">Amazon Brasil (.com.br)</option>
+              <option value="https://www.amazon.com/sendtokindle">Amazon EUA / Global (.com)</option>
+            </select>
+          </div>
+
+          <button class="btn btn-kindle btn-block" id="kindleAutoSendBtn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+            <span>Baixar e Abrir Amazon Send to Kindle</span>
+          </button>
+        </div>
+
+        <!-- Método 2: Envio por E-mail do Kindle -->
+        <div class="kindle-method-card secondary-method">
+          <div class="method-header">
+            <h4>Envio por E-mail (@kindle.com)</h4>
+          </div>
+          <p class="method-desc">Se preferir, envie anexado pelo seu e-mail para o endereço oficial do seu Kindle.</p>
+          
+          <div class="kindle-email-wrapper">
+            <input 
+              type="email" 
+              id="kindleEmailInput" 
+              placeholder="seu-kindle@kindle.com" 
+              autocomplete="email"
+            />
+            <button class="btn-save-email" id="kindleSaveEmailBtn" title="Salvar e-mail">Salvar</button>
+          </div>
+          <button class="btn btn-outline btn-block" id="kindleEmailSendBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+            <span>Abrir no App de E-mail</span>
+          </button>
         </div>
       </div>
     </div>

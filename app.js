@@ -303,6 +303,21 @@ const modalFormat = document.getElementById("modalFormat");
 const modalAddedDate = document.getElementById("modalAddedDate");
 const modalAgeRating = document.getElementById("modalAgeRating");
 const modalDownloadBtn = document.getElementById("modalDownloadBtn");
+const modalKindleBtn = document.getElementById("modalKindleBtn");
+const headerKindleBtn = document.getElementById("headerKindleBtn");
+
+// Elementos do Modal Assistente do Kindle
+const kindleModal = document.getElementById("kindleModal");
+const kindleModalCloseBtn = document.getElementById("kindleModalCloseBtn");
+const kindleBookTitle = document.getElementById("kindleBookTitle");
+const kindleBookAuthor = document.getElementById("kindleBookAuthor");
+const kindleBookMeta = document.getElementById("kindleBookMeta");
+const kindleAmazonRegion = document.getElementById("kindleAmazonRegion");
+const kindleAutoSendBtn = document.getElementById("kindleAutoSendBtn");
+const kindleEmailInput = document.getElementById("kindleEmailInput");
+const kindleSaveEmailBtn = document.getElementById("kindleSaveEmailBtn");
+const kindleEmailSendBtn = document.getElementById("kindleEmailSendBtn");
+let currentKindleBook = null;
 
 // Toast
 const toastNotification = document.getElementById("toastNotification");
@@ -592,6 +607,14 @@ function openBookModal(bookId) {
       triggerDownload(book.id);
     };
 
+    // Configurar ação do Kindle no modal
+    if (modalKindleBtn) {
+      modalKindleBtn.onclick = (e) => {
+        e.stopPropagation();
+        openKindleModal(book.id);
+      };
+    }
+
     bookModal.classList.remove("hidden");
     document.body.classList.add("modal-open");
     document.body.style.overflow = "hidden"; // trava rolagem de fundo
@@ -605,6 +628,100 @@ function closeBookModal() {
   bookModal.classList.add("hidden");
   document.body.classList.remove("modal-open");
   document.body.style.overflow = "";
+}
+
+// Abrir Modal Assistente do Kindle
+function openKindleModal(bookId) {
+  let book = allBooks.find(b => String(b.id).trim() === String(bookId).trim());
+  if (!book && allBooks.length > 0) book = allBooks[0];
+  if (!book) return;
+
+  currentKindleBook = book;
+  if (kindleBookTitle) kindleBookTitle.textContent = book.title || "Sem título";
+  if (kindleBookAuthor) kindleBookAuthor.textContent = book.author ? `Por ${book.author}` : "Autor não informado";
+  if (kindleBookMeta) kindleBookMeta.textContent = `${book.format || "EPUB"} • ${book.size || ""}`;
+
+  // Restaurar preferências salvas do usuário
+  const savedRegion = localStorage.getItem("kindle_amazon_region");
+  if (savedRegion && kindleAmazonRegion) {
+    kindleAmazonRegion.value = savedRegion;
+  }
+  const savedEmail = localStorage.getItem("kindle_email");
+  if (savedEmail && kindleEmailInput) {
+    kindleEmailInput.value = savedEmail;
+  }
+
+  if (kindleModal) {
+    kindleModal.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    document.body.style.overflow = "hidden";
+  }
+}
+
+// Fechar Modal Assistente do Kindle
+function closeKindleModal() {
+  if (kindleModal) kindleModal.classList.add("hidden");
+  if (bookModal && bookModal.classList.contains("hidden")) {
+    document.body.classList.remove("modal-open");
+    document.body.style.overflow = "";
+  }
+}
+
+// Executar Envio Automático para o Kindle Web (Download + Abertura da Amazon)
+async function executeKindleWebSend() {
+  if (!currentKindleBook) return;
+  const regionUrl = (kindleAmazonRegion && kindleAmazonRegion.value) || "https://www.amazon.com.br/sendtokindle";
+  localStorage.setItem("kindle_amazon_region", regionUrl);
+
+  showToast(`Baixando "${currentKindleBook.title}" para o Kindle...`);
+  await triggerDownload(currentKindleBook.id);
+
+  setTimeout(() => {
+    window.open(regionUrl, "_blank");
+    showToast("Página da Amazon aberta! Arraste o arquivo baixado nela.");
+  }, 1000);
+}
+
+// Salvar E-mail do Kindle
+function saveKindleEmail() {
+  const email = (kindleEmailInput && kindleEmailInput.value) ? kindleEmailInput.value.trim() : "";
+  if (!email) {
+    showToast("Por favor, digite um e-mail.");
+    return;
+  }
+  if (!email.includes("@")) {
+    showToast("E-mail inválido. Deve ser no formato seu-kindle@kindle.com");
+    return;
+  }
+  localStorage.setItem("kindle_email", email);
+  showToast("E-mail do Kindle salvo com sucesso!");
+}
+
+// Executar Envio por E-mail do Kindle
+async function executeKindleEmailSend() {
+  if (!currentKindleBook) return;
+  const email = (kindleEmailInput && kindleEmailInput.value) ? kindleEmailInput.value.trim() : "";
+  if (!email) {
+    showToast("Informe o e-mail do seu Kindle (@kindle.com) antes de enviar.");
+    if (kindleEmailInput) kindleEmailInput.focus();
+    return;
+  }
+  localStorage.setItem("kindle_email", email);
+
+  // Baixa o arquivo para o usuário anexar
+  await triggerDownload(currentKindleBook.id);
+
+  const subject = encodeURIComponent(`Livro: ${currentKindleBook.title}`);
+  const body = encodeURIComponent(
+    `Olá! Segue em anexo o livro "${currentKindleBook.title}" (${currentKindleBook.author || "Autor"}) para o seu dispositivo Kindle.\n\n` +
+    `Lembre-se de anexar o arquivo "${currentKindleBook.fileName || currentKindleBook.title + '.epub'}" baixado agora no seu aparelho.\n`
+  );
+  const mailtoUrl = `mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}`;
+
+  setTimeout(() => {
+    window.location.href = mailtoUrl;
+    showToast("Cliente de e-mail aberto! Anexe o livro baixado e envie.");
+  }, 1000);
 }
 
 // Conversor otimizado de Base64 para Blob (alocação única de memória)
@@ -798,6 +915,38 @@ function setupEventListeners() {
       closeBookModal();
     }
   };
+
+  // Fechar Modal do Kindle
+  if (kindleModalCloseBtn) kindleModalCloseBtn.onclick = closeKindleModal;
+  if (kindleModal) {
+    kindleModal.onclick = (e) => {
+      if (e.target === kindleModal) closeKindleModal();
+    };
+  }
+
+  // Ações do Modal do Kindle
+  if (kindleAutoSendBtn) kindleAutoSendBtn.onclick = executeKindleWebSend;
+  if (kindleSaveEmailBtn) kindleSaveEmailBtn.onclick = saveKindleEmail;
+  if (kindleEmailSendBtn) kindleEmailSendBtn.onclick = executeKindleEmailSend;
+  if (kindleAmazonRegion) {
+    kindleAmazonRegion.onchange = () => {
+      localStorage.setItem("kindle_amazon_region", kindleAmazonRegion.value);
+    };
+  }
+
+  // Botão do Header: Atalho direto para o Send to Kindle Web
+  if (headerKindleBtn) {
+    headerKindleBtn.addEventListener("click", () => {
+      // Se um livro estiver selecionado no modal, abre o assistente dele
+      if (currentKindleBook && !bookModal.classList.contains("hidden")) {
+        openKindleModal(currentKindleBook.id);
+      } else {
+        const regionUrl = localStorage.getItem("kindle_amazon_region") || "https://www.amazon.com.br/sendtokindle";
+        window.open(regionUrl, "_blank");
+        showToast("Abrindo Amazon Send to Kindle Web...");
+      }
+    });
+  }
 
   // Botão de Sincronizar com o Google Drive
   const syncDriveBtn = document.getElementById("syncDriveBtn");

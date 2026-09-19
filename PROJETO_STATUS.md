@@ -34,6 +34,12 @@
 - **Identificação de Idioma:** Detecção de texto e metadados identificou 120 obras em língua inglesa, padronizadas com a etiqueta `(English)` no nome do arquivo (`<Título> - <Autor> (English).epub`).
 - **Reindexação Total:** Execução do [`scan_books.py`](./scan_books.py) atualizando [`books.json`](./books.json), [`books-data.js`](./books-data.js) e mais de 640 capas reais em [`capas/`](./capas/).
 
+### ✅ Fase 4: Integração com Amazon Send to Kindle
+- **Botão Dedicado no Modal de Detalhes:** Acesso direto para envio de qualquer obra para o leitor físico ou aplicativo Kindle.
+- **Fluxo Assistido em 1 Clique:** Dispara o download seguro do EPUB e abre automaticamente a página oficial do Amazon Send to Kindle (`amazon.com.br/sendtokindle` ou `amazon.com/sendtokindle`).
+- **Envio por E-mail do Kindle (`@kindle.com`):** Campo persistente no `localStorage` para quem prefere envio automático por e-mail com assunto e corpo pré-formatados.
+- **Atalho no Cabeçalho:** Acesso rápido ao portal Send to Kindle no topo da página.
+
 ---
 
 ## 📂 Arquivos do Projeto
