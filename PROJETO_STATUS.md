@@ -115,6 +115,54 @@ sequenceDiagram
 
 ---
 
+## 📲 Próxima Atividade: Integração com WhatsApp para Pedidos de Livros & Fila de Aquisições
+
+> **Conceito:** Permitir que os usuários solicitem novas obras diretamente pelo site com abertura automática do WhatsApp, alimentando uma lista organizada de livros pendentes para download, indexação e inclusão no acervo.
+
+```mermaid
+flowchart LR
+    A[Usuário pesquisa livro não encontrado] --> B[Clica em 'Pedir Livro via WhatsApp']
+    B --> C[Modal com Título / Autor pré-preenchidos]
+    C --> D[Gera mensagem formatada no WhatsApp]
+    D --> E[Administrador recebe o pedido]
+    E --> F[Adiciona à Fila de Aquisições / Downloads]
+    F --> G[Download do EPUB + scan_books.py]
+    G --> H[Livro entra no Drive e no Site automaticamente]
+```
+
+### 1. Funcionalidades Planejadas no Site:
+- **Botão de Solicitação no Header / Navbar:**
+  - Botão com ícone oficial do WhatsApp (`Pedir Livro`) integrado de forma harmônica com o botão do Kindle.
+- **Integração com a Busca (Empty State Ativo):**
+  - Quando a busca não retornar resultados, a tela exibe um Call-to-Action inteligente:
+    *"Não encontrou o que procurava? Clique aqui para pedir este livro pelo WhatsApp!"*
+  - O termo pesquisado é inserido automaticamente no campo de título do pedido.
+- **Modal de Pedido Rápido (`#requestBookModal`):**
+  - Campos: *Título da Obra*, *Autor (opcional)*, *Formato preferido (EPUB/PDF)* e *Observações*.
+  - Botão de envio que compõe o link direto `https://wa.me/SEU_NUMERO?text=...` devidamente codificado (`encodeURIComponent`).
+
+### 2. Formato da Mensagem Gerada para o WhatsApp:
+```text
+📚 *Novo Pedido de Livro — Let's Be Readers*
+────────────────────────
+📖 *Título:* O Nome do Vento
+✍️ *Autor:* Patrick Rothfuss
+📱 *Formato:* EPUB
+💬 *Nota:* Gostaria de ler no meu Kindle!
+────────────────────────
+Enviado pela biblioteca digital pessoal.
+```
+
+### 3. Fila de Aquisições & Processamento:
+- **Lista de Pedidos Pendentes:** Criação de um arquivo Markdown de acompanhamento (`PEDIDOS_PENDENTES.md`) ou integração opcional com aba no Google Planilhas via Apps Script.
+- **Fluxo Operacional de Inclusão:**
+  1. O administrador baixa o livro solicitado na pasta local `~/Downloads/Livros`.
+  2. Executa `python3 scan_books.py` para gerar a capa determinística e atualizar o catálogo.
+  3. O arquivo sincroniza com a pasta do Google Drive (`google-drive-sync.gs`).
+  4. O livro fica disponível imediatamente para todos os usuários autorizados.
+
+---
+
 ## 🖥️ Como rodar e visualizar localmente
 
 ```bash
