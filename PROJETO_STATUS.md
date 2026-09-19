@@ -3,7 +3,7 @@
 > **Conceito:** Biblioteca digital pessoal moderna para catálogo, busca e download de livros (EPUB, PDF) sincronizada em tempo real com o Google Drive.  
 > **Repositório GitHub:** [github.com/GehardFernando/biblioteca-drive](https://github.com/GehardFernando/biblioteca-drive)  
 > **Site no Ar (GitHub Pages):** [gehardfernando.github.io/biblioteca-drive](https://gehardfernando.github.io/biblioteca-drive/)  
-> **Última Atualização:** 18 de Setembro de 2026  
+> **Última Atualização:** 19 de Setembro de 2026  
 
 ---
 
@@ -40,14 +40,21 @@
 - **Envio por E-mail do Kindle (`@kindle.com`):** Campo persistente no `localStorage` para quem prefere envio automático por e-mail com assunto e corpo pré-formatados.
 - **Atalho no Cabeçalho:** Acesso rápido ao portal Send to Kindle no topo da página.
 
-### ✅ Fase 5: Correção Definitiva de Capas & Invalidação de Cache Mobile
-- **Diagnóstico da Causa Raiz:** O uso prévio de índices sequenciais (`book-{idx}`) no `scan_books.py` fez com que a remoção de duplicatas deslocasse os índices em cascata (421 livros ficaram com capas trocadas, como *O Hobbit* exibindo a capa de *O Silêncio dos Inocentes*). O cache do `localStorage` no mobile congelou as capas erradas nos celulares dos usuários.
+### ✅ Fase 5: Correção Definitiva de Capas & Nomes Determinísticos
 - **Nomes de Capas Determinísticos e Imutáveis:** Nomes de capa e IDs gerados via hash SHA-256 do arquivo (`cov_<hash>.<ext>`), blindando o catálogo contra descompassos mesmo que livros sejam adicionados ou removidos.
 - **Extração e Auditoria 100% Precisas:** 646 capas extraídas diretamente do interior de cada EPUB atual. Expurgadas 779 capas legadas e órfãs. Auditoria automatizada confirmou 0 capas trocadas.
-- **Invalidação de Cache & Cache Busting:**
-  - Cache local versionado para `drive_books_cache_v4` com limpeza proativa de caches legados corrompidos.
-  - Parâmetros `?v=20260918_v4` em `<script>` e `<link>` para contornar o cache HTTP agressivo de navegadores móveis (Safari iOS, Chrome Android).
-  - Normalização de títulos e nomes de arquivo com remoção de acentos para emparelhamento perfeito de capas nos livros sincronizados via Google Drive.
+
+### ✅ Fase 6: Cobertura de 100% das Capas do Catálogo & Invalidação de Cache v5
+- **100% dos Livros com Capas Reais:** Os 15 títulos que estavam pendentes de capa foram completamente solucionados:
+  - Extração profunda de capas em alta resolução no interior dos EPUBs (*Patinando no Amor* 300 DPI, *O Maravilhoso Livro das Meninas*, *A Saga de Darren Shan 4*, *Julie & Julia*, *Mais Comédias Para Ler na Escola*, *Como Enxergar Bem Sem Óculos*, *Dias Melhores Virão*).
+  - Reparo e extração via 7z para arquivos com cabeçalhos atípicos (*Desculpa Se Te Chamo de Amor*).
+  - Integração de capas oficiais brasileiras de alta definição para obras sem arte embutida (*Dexter: A Mão Esquerda de Deus*, *White Fang*, *Aliviando a Bagagem*, *Nas Garras da Graça*, *A Grande Casa de Deus*, *O Novo Mundo Digital*).
+  - Capa editorial personalizada para o compilado *Artigos Selecionados (Instapaper 2011)*.
+- **Índice Perfeito:** 661 livros catalogados, 661 com capa válida em disco (0 livros sem capa).
+- **Sanitização de Títulos:** Correção de falhas legadas de codificação de caracteres em títulos do acervo.
+- **Invalidação Proativa de Cache (v5):**
+  - Cache local atualizado para `drive_books_cache_v5` com limpeza automática de versões legadas (`v1` a `v4`).
+  - Atualização dos parâmetros `?v=20260919_v5` no `index.html` garantindo visualização instantânea em celulares e computadores.
 
 ---
 
@@ -57,11 +64,11 @@
 | :--- | :--- |
 | [`index.html`](./index.html) | Estrutura semântica: header com busca instantânea, botão de sincronização, filtros, grid de livros e modal de detalhes. |
 | [`style.css`](./style.css) | Sistema de design completo e responsivo (desktop, tablet, mobile) sem dependências externas. |
-| [`app.js`](./app.js) | Lógica da aplicação: integração com Google Apps Script, cache, busca instantânea (incluindo filtro por `(English)`), paginação fluida e downloads. |
+| [`app.js`](./app.js) | Lógica da aplicação: integração com Google Apps Script, cache v5, busca instantânea, paginação fluida e downloads. |
 | [`google-drive-sync.gs`](./google-drive-sync.gs) | Script do Google Apps Script para leitura contínua e em tempo real da pasta do Google Drive. |
-| [`scan_books.py`](./scan_books.py) | Indexador Python local para extração de capas em alta resolução de arquivos EPUB. |
-| [`books.json`](./books.json) & [`books-data.js`](./books-data.js) | Base de dados estruturada com 661 livros e fallback offline. |
-| [`capas/`](./capas/) | Diretório com mais de 640 capas reais extraídas dos livros. |
+| [`scan_books.py`](./scan_books.py) | Indexador Python com extração profunda e resiliente de capas. |
+| [`books.json`](./books.json) & [`books-data.js`](./books-data.js) | Base de dados estruturada com 661 livros e 100% de capas cobertas. |
+| [`capas/`](./capas/) | Diretório com 661 capas reais indexadas deterministicamente por hash SHA-256. |
 | [`.gitignore`](./.gitignore) | Proteção para não subir arquivos binários pesados de livros para o repositório Git. |
 | [`PROJETO_STATUS.md`](./PROJETO_STATUS.md) | Documentação de status e arquitetura do projeto. |
 

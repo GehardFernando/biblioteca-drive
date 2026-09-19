@@ -130,16 +130,72 @@ def extract_cover_path(z, opf_root, opf_path):
         if 'cover-image' in props and href:
             cover_by_prop = urllib.parse.unquote(href)
 
+    # 2. Guide reference com type="cover"
+    cover_by_guide = None
+    for ref in opf_root.findall('.//{*}reference'):
+        ref_type = ref.attrib.get('type', '').lower()
+        if 'cover' in ref_type:
+            ref_href = ref.attrib.get('href', '')
+            if ref_href:
+                cover_by_guide = urllib.parse.unquote(ref_href.split('#')[0])
+                break
+
     cover_href = None
     if cover_id and cover_id in manifest:
         cover_href = manifest[cover_id][0]
     elif cover_by_prop:
         cover_href = cover_by_prop
+    elif cover_by_guide and any(cover_by_guide.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp']):
+        cover_href = cover_by_guide
     else:
+        # 3. Buscar item de imagem no manifesto cujo ID ou href contenha 'cover', 'capa', 'jacket'
         for item_id, (href, m_type) in manifest.items():
-            if m_type.startswith('image/') and any(k in item_id.lower() or k in href.lower() for k in ['cover', 'capa']):
+            if m_type.startswith('image/') and any(k in item_id.lower() or k in href.lower() for k in ['cover', 'capa', 'jacket', 'front']):
                 cover_href = href
                 break
+
+    # 4. Se não achou, examinar a primeira página do spine (HTML/XHTML) procurando a primeira imagem
+    if not cover_href:
+        try:
+            spine_itemrefs = opf_root.findall('.//{*}itemref')
+            for itemref in spine_itemrefs[:3]:
+                idref = itemref.attrib.get('idref')
+                if idref in manifest:
+                    html_href = manifest[idref][0]
+                    full_html = posixpath.normpath(posixpath.join(opf_dir, html_href)) if opf_dir else html_href
+                    if full_html in z.namelist():
+                        html_content = z.read(full_html).decode('utf-8', errors='ignore')
+                        img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', html_content, re.I)
+                        if not img_match:
+                            img_match = re.search(r'<image[^>]+xlink:href=["\']([^"\']+)["\']', html_content, re.I)
+                        if not img_match:
+                            img_match = re.search(r'<image[^>]+href=["\']([^"\']+)["\']', html_content, re.I)
+                        if img_match:
+                            src = urllib.parse.unquote(img_match.group(1))
+                            if any(src.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp']):
+                                html_dir = posixpath.dirname(full_html)
+                                cand_href = posixpath.normpath(posixpath.join(html_dir, src)) if html_dir else src
+                                if cand_href in z.namelist() and z.getinfo(cand_href).file_size > 3000:
+                                    return cand_href
+                                alt_cover = posixpath.normpath(posixpath.join(opf_dir, src)) if opf_dir else src
+                                if alt_cover in z.namelist() and z.getinfo(alt_cover).file_size > 3000:
+                                    return alt_cover
+        except Exception:
+            pass
+
+    # 5. Se ainda não achou, verificar imagens no manifesto com mais de 50KB (ex: capas com nomes específicos)
+    if not cover_href:
+        for item_id, (href, m_type) in manifest.items():
+            if m_type.startswith('image/'):
+                full_cand = posixpath.normpath(posixpath.join(opf_dir, href)) if opf_dir else href
+                if full_cand in z.namelist():
+                    try:
+                        info = z.getinfo(full_cand)
+                        if info.file_size > 50000:
+                            cover_href = href
+                            break
+                    except Exception:
+                        pass
                 
     if cover_href:
         full_cover = posixpath.normpath(posixpath.join(opf_dir, cover_href)) if opf_dir else cover_href
@@ -208,15 +264,15 @@ def scan_books(source_dir=DEFAULT_SOURCE):
                             t_elem = opf_root.find('.//{*}title')
                             if t_elem is not None and t_elem.text and len(t_elem.text.strip()) > 1:
                                 opf_t = t_elem.text.strip()
-                                # Se o título do OPF não for um ID genérico
-                                if not re.match(r'^(urn:|isbn|calibre|\d+$)', opf_t, re.I):
+                                # Se o título do OPF não for um ID genérico e não tiver caracteres corrompidos
+                                if not re.match(r'^(urn:|isbn|calibre|instapaper:|\d+$)', opf_t, re.I) and '\ufffd' not in opf_t:
                                     title = opf_t
                             
                             # Autor
                             c_elem = opf_root.find('.//{*}creator')
                             if c_elem is not None and c_elem.text and len(c_elem.text.strip()) > 1:
                                 opf_a = c_elem.text.strip()
-                                if not re.match(r'^(desconhecido|unknown|n/a|\d+$)', opf_a, re.I):
+                                if not re.match(r'^(desconhecido|unknown|n/a|\d+$)', opf_a, re.I) and '\ufffd' not in opf_a:
                                     author = opf_a
                                     
                             # Descrição / Sinopse
@@ -238,17 +294,28 @@ def scan_books(source_dir=DEFAULT_SOURCE):
                                 dest_cover_name = f"cov_{file_hash}{ext}"
                                 dest_cover_path = os.path.join(COVERS_DIR, dest_cover_name)
                                 
-                                # Sempre extrair a capa correta do EPUB para garantir 100% de correspondência
+                                # Extrair a capa correta do EPUB se tiver resolução e tamanho adequados (>= 3KB)
                                 cover_bytes = z.read(cover_path)
-                                with open(dest_cover_path, 'wb') as cov_f:
-                                    cov_f.write(cover_bytes)
-                                
-                                cover_filename = f"capas/{dest_cover_name}"
-                                valid_cover_files.add(dest_cover_name)
-                                covers_extracted += 1
+                                if len(cover_bytes) >= 3000:
+                                    with open(dest_cover_path, 'wb') as cov_f:
+                                        cov_f.write(cover_bytes)
+                                    
+                                    cover_filename = f"capas/{dest_cover_name}"
+                                    valid_cover_files.add(dest_cover_name)
+                                    covers_extracted += 1
             except Exception:
-                # Se falhar no parsing do zip, mantém os dados do arquivo
+                # Se falhar no parsing do zip, tenta recuperação resiliente
                 pass
+
+        # Fallback para capas pré-existentes ou curadas em COVERS_DIR
+        if not cover_filename and os.path.exists(COVERS_DIR):
+            for ext in ['.jpg', '.jpeg', '.png', '.webp']:
+                cand = f"cov_{file_hash}{ext}"
+                cand_p = os.path.join(COVERS_DIR, cand)
+                if os.path.exists(cand_p) and os.path.getsize(cand_p) > 1000:
+                    cover_filename = f"capas/{cand}"
+                    valid_cover_files.add(cand)
+                    break
 
         category = detect_genre(title, author, subjects)
         

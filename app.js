@@ -192,13 +192,13 @@ let isListView = false;
 const PAGE_SIZE = 36;
 let visibleCount = PAGE_SIZE;
 
-// Chave de versão de cache local (invalida automaticamente caches de versões antigas com capas incorretas)
-const CACHE_KEY = "drive_books_cache_v4";
+// Chave de versão de cache local (invalida automaticamente caches de versões antigas garantindo 100% das capas atualizadas)
+const CACHE_KEY = "drive_books_cache_v5";
 
 // Expurgar proativamente caches legados corrompidos (mobile/desktop)
 if (typeof window !== "undefined") {
   try {
-    ["drive_books_cache", "drive_books_cache_v1", "drive_books_cache_v2", "drive_books_cache_v3"].forEach(k => {
+    ["drive_books_cache", "drive_books_cache_v1", "drive_books_cache_v2", "drive_books_cache_v3", "drive_books_cache_v4"].forEach(k => {
       localStorage.removeItem(k);
     });
   } catch (e) {}

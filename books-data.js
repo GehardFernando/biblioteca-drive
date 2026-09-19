@@ -522,7 +522,7 @@ window.REAL_BOOKS = [
     "sizeBytes": 218233,
     "pages": 60,
     "dateAdded": "07/09/2026",
-    "cover": "",
+    "cover": "capas/cov_7b11f56574af.jpg",
     "synopsis": "Obra 'A Grande Casa de Deus - Um lugar para o seu coração', de autoria de Max Lucado. Disponível em formato EPUB na sua biblioteca pessoal para leitura e download direto.",
     "fileName": "A Grande Casa de Deus - Um lugar para o - Max Lucado.epub",
     "downloadUrl": "livros/A Grande Casa de Deus - Um lugar para o - Max Lucado.epub"
@@ -882,7 +882,7 @@ window.REAL_BOOKS = [
     "sizeBytes": 1158330,
     "pages": 257,
     "dateAdded": "07/09/2026",
-    "cover": "",
+    "cover": "capas/cov_79d50ce06ca5.png",
     "synopsis": "Obra 'A Saga de Darren Shan 4 - A Montanha do Vampiro', de autoria de Darren Shan. Disponível em formato EPUB na sua biblioteca pessoal para leitura e download direto.",
     "fileName": "A Saga de Darren Shan - A Montanha do Vampiro - Darren Shan.epub",
     "downloadUrl": "livros/A Saga de Darren Shan - A Montanha do Vampiro - Darren Shan.epub"
@@ -1152,7 +1152,7 @@ window.REAL_BOOKS = [
     "sizeBytes": 6620053,
     "pages": 1200,
     "dateAdded": "07/09/2026",
-    "cover": "",
+    "cover": "capas/cov_9c4ebbd34edf.png",
     "synopsis": "Obra 'Aliviando a Bagagem', de autoria de Max Lucado. Disponível em formato EPUB na sua biblioteca pessoal para leitura e download direto.",
     "fileName": "Aliviando a Bagagem - Max Lucado.epub",
     "downloadUrl": "livros/Aliviando a Bagagem - Max Lucado.epub"
@@ -1294,7 +1294,7 @@ window.REAL_BOOKS = [
   },
   {
     "id": "book-1170696947f3",
-    "title": "Instapaper: Wednesday, Oct. 26th",
+    "title": "Artigos Selecionados (Instapaper 2011)",
     "author": "Instapaper: Wednesday, Oct. 26th",
     "category": "Literatura Geral",
     "format": "EPUB",
@@ -1302,8 +1302,8 @@ window.REAL_BOOKS = [
     "sizeBytes": 118988,
     "pages": 60,
     "dateAdded": "07/09/2026",
-    "cover": "",
-    "synopsis": "Obra 'Instapaper: Wednesday, Oct. 26th', de autoria de Instapaper: Wednesday, Oct. 26th. Disponível em formato EPUB na sua biblioteca pessoal para leitura e download direto.",
+    "cover": "capas/cov_1170696947f3.jpg",
+    "synopsis": "Obra 'Artigos Selecionados (Instapaper 2011)', de autoria de Instapaper: Wednesday, Oct. 26th. Disponível em formato EPUB na sua biblioteca pessoal para leitura e download direto.",
     "fileName": "Artigos Selecionados (Instapaper 2011) - Vários Autores.epub",
     "downloadUrl": "livros/Artigos Selecionados (Instapaper 2011) - Vários Autores.epub"
   },
@@ -2622,7 +2622,7 @@ window.REAL_BOOKS = [
     "sizeBytes": 589563,
     "pages": 131,
     "dateAdded": "07/09/2026",
-    "cover": "",
+    "cover": "capas/cov_a8821fb2fd45.jpg",
     "synopsis": "Obra 'Como Enxergar Bem Sem Oculos', de autoria de M Matheus De Souza. Disponível em formato EPUB na sua biblioteca pessoal para leitura e download direto.",
     "fileName": "Como Enxergar Bem Sem Oculos - M Matheus De Souza.epub",
     "downloadUrl": "livros/Como Enxergar Bem Sem Oculos - M Matheus De Souza.epub"
@@ -3282,7 +3282,7 @@ window.REAL_BOOKS = [
     "sizeBytes": 836277,
     "pages": 185,
     "dateAdded": "07/09/2026",
-    "cover": "",
+    "cover": "capas/cov_3bc1d535768e.jpeg",
     "synopsis": "Obra 'Desculpa Se Te Chamo de Amor', de autoria de Federico Moccia. Disponível em formato EPUB na sua biblioteca pessoal para leitura e download direto.",
     "fileName": "Desculpa Se Te Chamo de Amor - Federico Moccia.epub",
     "downloadUrl": "livros/Desculpa Se Te Chamo de Amor - Federico Moccia.epub"
@@ -3342,7 +3342,7 @@ window.REAL_BOOKS = [
     "sizeBytes": 198064,
     "pages": 60,
     "dateAdded": "07/09/2026",
-    "cover": "",
+    "cover": "capas/cov_abe1371484a9.jpg",
     "synopsis": "Obra 'Dexter: a mão esquerda de Deus', de autoria de Jeff Lindsay. Disponível em formato EPUB na sua biblioteca pessoal para leitura e download direto.",
     "fileName": "Dexter - A Mão Esquerda de Deus - Jeff Lindsay.epub",
     "downloadUrl": "livros/Dexter - A Mão Esquerda de Deus - Jeff Lindsay.epub"
@@ -3439,7 +3439,7 @@ window.REAL_BOOKS = [
   },
   {
     "id": "book-aeebe2e68d70",
-    "title": "Dias Melhores Vir��o",
+    "title": "Dias Melhores Virão",
     "author": "Max Lucado",
     "category": "Literatura Geral",
     "format": "EPUB",
@@ -3447,8 +3447,8 @@ window.REAL_BOOKS = [
     "sizeBytes": 94288,
     "pages": 60,
     "dateAdded": "07/09/2026",
-    "cover": "",
-    "synopsis": "Obra 'Dias Melhores Vir��o', de autoria de Max Lucado. Disponível em formato EPUB na sua biblioteca pessoal para leitura e download direto.",
+    "cover": "capas/cov_aeebe2e68d70.jpg",
+    "synopsis": "Obra 'Dias Melhores Virão', de autoria de Max Lucado. Disponível em formato EPUB na sua biblioteca pessoal para leitura e download direto.",
     "fileName": "Dias Melhores Virão - Max Lucado.epub",
     "downloadUrl": "livros/Dias Melhores Virão - Max Lucado.epub"
   },
@@ -5127,7 +5127,7 @@ window.REAL_BOOKS = [
     "sizeBytes": 509702,
     "pages": 113,
     "dateAdded": "07/09/2026",
-    "cover": "",
+    "cover": "capas/cov_60c673e7cef2.jpg",
     "synopsis": "Obra 'Julie & Julia', de autoria de Julie Powell. Disponível em formato EPUB na sua biblioteca pessoal para leitura e download direto.",
     "fileName": "Julie & Julia - Julie Powell.epub",
     "downloadUrl": "livros/Julie & Julia - Julie Powell.epub"
@@ -5337,7 +5337,7 @@ window.REAL_BOOKS = [
     "sizeBytes": 101835,
     "pages": 60,
     "dateAdded": "07/09/2026",
-    "cover": "",
+    "cover": "capas/cov_a93ec0b3afab.jpg",
     "synopsis": "Obra 'Mais Comedias Para Ler na Escola', de autoria de Luis Fernando Verissimo. Disponível em formato EPUB na sua biblioteca pessoal para leitura e download direto.",
     "fileName": "Mais Comedias Para Ler na Escola - Luis Fernando Verissimo.epub",
     "downloadUrl": "livros/Mais Comedias Para Ler na Escola - Luis Fernando Verissimo.epub"
@@ -5779,7 +5779,7 @@ window.REAL_BOOKS = [
   },
   {
     "id": "book-4345a0f4b1a7",
-    "title": "Nas Garras da Gra��a",
+    "title": "Nas Garras da Graça",
     "author": "Max Lucado",
     "category": "Literatura Geral",
     "format": "EPUB",
@@ -5787,8 +5787,8 @@ window.REAL_BOOKS = [
     "sizeBytes": 176702,
     "pages": 60,
     "dateAdded": "07/09/2026",
-    "cover": "",
-    "synopsis": "Obra 'Nas Garras da Gra��a', de autoria de Max Lucado. Disponível em formato EPUB na sua biblioteca pessoal para leitura e download direto.",
+    "cover": "capas/cov_4345a0f4b1a7.jpg",
+    "synopsis": "Obra 'Nas Garras da Graça', de autoria de Max Lucado. Disponível em formato EPUB na sua biblioteca pessoal para leitura e download direto.",
     "fileName": "Nas Garras da Graça - Max Lucado.epub",
     "downloadUrl": "livros/Nas Garras da Graça - Max Lucado.epub"
   },
@@ -6747,7 +6747,7 @@ window.REAL_BOOKS = [
     "sizeBytes": 2533337,
     "pages": 562,
     "dateAdded": "07/09/2026",
-    "cover": "",
+    "cover": "capas/cov_a3f0b2435dd1.jpg",
     "synopsis": "Obra 'O Maravilhoso Livro das Meninas', de autoria de Rosemary Davidson. Disponível em formato EPUB na sua biblioteca pessoal para leitura e download direto.",
     "fileName": "O Maravilhoso Livro das Meninas - Rosemary Davidson.epub",
     "downloadUrl": "livros/O Maravilhoso Livro das Meninas - Rosemary Davidson.epub"
@@ -6972,7 +6972,7 @@ window.REAL_BOOKS = [
     "sizeBytes": 1111833,
     "pages": 247,
     "dateAdded": "07/09/2026",
-    "cover": "",
+    "cover": "capas/cov_57a2d5e4abd0.jpg",
     "synopsis": "Obra 'O Novo Mundo Digital', de autoria de Ricardo Oliveira Neves. Disponível em formato EPUB na sua biblioteca pessoal para leitura e download direto.",
     "fileName": "O Novo Mundo Digital - Ricardo Oliveira Neves.epub",
     "downloadUrl": "livros/O Novo Mundo Digital - Ricardo Oliveira Neves.epub"
@@ -7707,7 +7707,7 @@ window.REAL_BOOKS = [
     "sizeBytes": 1606296,
     "pages": 356,
     "dateAdded": "07/03/2026",
-    "cover": "",
+    "cover": "capas/cov_704a5830300f.jpg",
     "synopsis": "Obra 'Patinando no amor', de autoria de Autor Lynn Painter. Disponível em formato EPUB na sua biblioteca pessoal para leitura e download direto.",
     "fileName": "Patinando no amor - Autor Lynn Painter.epub",
     "downloadUrl": "livros/Patinando no amor - Autor Lynn Painter.epub"
@@ -8584,8 +8584,8 @@ window.REAL_BOOKS = [
   },
   {
     "id": "book-50f3f272f8ff",
-    "title": "SINOPSES JUR�DICAS 3 - DIREITO DAS COISAS",
-    "author": "CARLOS ROBERTO GON�ALVES",
+    "title": "Sinopses Juridicas 3 - Direito das Coisas",
+    "author": "Carlos Roberto Goncalves",
     "category": "Literatura Geral",
     "format": "EPUB",
     "size": "2.8 MB",
@@ -9882,7 +9882,7 @@ window.REAL_BOOKS = [
     "sizeBytes": 214367,
     "pages": 60,
     "dateAdded": "07/09/2026",
-    "cover": "",
+    "cover": "capas/cov_b805cb15df37.png",
     "synopsis": "An initiation story concerning the taming of a wild dog in the Klondike.",
     "fileName": "White Fang - Jack London (English).epub",
     "downloadUrl": "livros/White Fang - Jack London (English).epub"
