@@ -93,14 +93,188 @@ function formatBytes(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
+// ==========================================================================
+// SEGURANÇA & CONTROLE DE ACESSO (3 SLOTS RESTRITOS)
+// ==========================================================================
+const ADMIN_MASTER_KEY = "lbr_master_gehard_8f93a1c72";
+const BASE_SITE_URL = "https://gehardfernando.github.io/biblioteca-drive/";
+
+function getSecurityState() {
+  const props = PropertiesService.getScriptProperties();
+  const stateJson = props.getProperty("LBR_SECURITY_STATE");
+  if (!stateJson) {
+    const initialState = {
+      slots: {
+        "guest_1": {
+          name: "Convidado 1",
+          status: "pending",
+          inviteToken: "conv_" + Utilities.getUuid().replace(/-/g, "").substring(0, 16),
+          deviceId: null,
+          activatedAt: null
+        },
+        "guest_2": {
+          name: "Convidado 2",
+          status: "pending",
+          inviteToken: "conv_" + Utilities.getUuid().replace(/-/g, "").substring(0, 16),
+          deviceId: null,
+          activatedAt: null
+        }
+      }
+    };
+    props.setProperty("LBR_SECURITY_STATE", JSON.stringify(initialState));
+    return initialState;
+  }
+  try {
+    return JSON.parse(stateJson);
+  } catch (err) {
+    return { slots: {} };
+  }
+}
+
+function saveSecurityState(state) {
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty("LBR_SECURITY_STATE", JSON.stringify(state));
+}
+
+function isDeviceAuthorized(deviceId, adminKey) {
+  if (adminKey === ADMIN_MASTER_KEY) return { authorized: true, role: "admin" };
+  if (!deviceId) return { authorized: false };
+  if (deviceId === "admin_laptop_gehard") return { authorized: true, role: "admin" };
+
+  const state = getSecurityState();
+  for (const key in state.slots) {
+    const slot = state.slots[key];
+    if (slot.status === "active" && slot.deviceId === deviceId) {
+      return { authorized: true, role: "guest", slotKey: key, name: slot.name };
+    }
+  }
+  return { authorized: false };
+}
+
 function doGet(e) {
   try {
-    // 1. Download Direto via API (Evita a tela do Google Drive de selecionar conta no celular)
-    if (e && e.parameter && e.parameter.action === "download" && e.parameter.fileId) {
-      const file = DriveApp.getFileById(e.parameter.fileId);
+    const p = (e && e.parameter) ? e.parameter : {};
+    const action = p.action || "list";
+
+    // 1. ENDPOINTS DE ADMINISTRAÇÃO (Exigem ADMIN_MASTER_KEY)
+    if (action === "admin_get_slots") {
+      if (p.adminKey !== ADMIN_MASTER_KEY) {
+        return jsonOutput({ status: "error", message: "Chave mestre inválida." });
+      }
+      const state = getSecurityState();
+      return jsonOutput({
+        status: "success",
+        slots: state.slots,
+        baseUrl: BASE_SITE_URL
+      });
+    }
+
+    if (action === "admin_generate_invite") {
+      if (p.adminKey !== ADMIN_MASTER_KEY) {
+        return jsonOutput({ status: "error", message: "Chave mestre inválida." });
+      }
+      const slotKey = p.slotKey; // 'guest_1' ou 'guest_2'
+      const state = getSecurityState();
+      if (!state.slots[slotKey]) {
+        return jsonOutput({ status: "error", message: "Slot não encontrado." });
+      }
+      const newToken = "conv_" + Utilities.getUuid().replace(/-/g, "").substring(0, 16);
+      state.slots[slotKey].inviteToken = newToken;
+      state.slots[slotKey].status = "pending";
+      state.slots[slotKey].deviceId = null;
+      state.slots[slotKey].activatedAt = null;
+      saveSecurityState(state);
+
+      return jsonOutput({
+        status: "success",
+        slotKey: slotKey,
+        slot: state.slots[slotKey],
+        inviteUrl: BASE_SITE_URL + "?convite=" + newToken
+      });
+    }
+
+    if (action === "admin_revoke_slot") {
+      if (p.adminKey !== ADMIN_MASTER_KEY) {
+        return jsonOutput({ status: "error", message: "Chave mestre inválida." });
+      }
+      const slotKey = p.slotKey;
+      const state = getSecurityState();
+      if (state.slots[slotKey]) {
+        state.slots[slotKey].status = "revoked";
+        state.slots[slotKey].deviceId = null;
+        saveSecurityState(state);
+      }
+      return jsonOutput({ status: "success", message: "Slot revogado com sucesso." });
+    }
+
+    // 2. ATIVAÇÃO DE CONVITE NO PRIMEIRO ACESSO DO CONVIDADO
+    if (action === "activate_invite") {
+      const inviteToken = p.inviteToken;
+      const deviceId = p.deviceId;
+
+      if (!inviteToken || !deviceId) {
+        return jsonOutput({ status: "error", message: "Token de convite ou identificador ausente." });
+      }
+
+      const state = getSecurityState();
+      let matchedKey = null;
+
+      for (const key in state.slots) {
+        const slot = state.slots[key];
+        if (slot.inviteToken === inviteToken) {
+          matchedKey = key;
+          break;
+        }
+      }
+
+      if (!matchedKey) {
+        return jsonOutput({ status: "error", message: "Convite inválido ou inexistente." });
+      }
+
+      const targetSlot = state.slots[matchedKey];
+      if (targetSlot.status === "active" && targetSlot.deviceId !== deviceId) {
+        return jsonOutput({ status: "error", message: "Este convite já foi utilizado e está vinculado a outro dispositivo." });
+      }
+
+      // Vincular dispositivo permanentemente ao slot
+      targetSlot.status = "active";
+      targetSlot.deviceId = deviceId;
+      targetSlot.activatedAt = new Date().toISOString();
+      saveSecurityState(state);
+
+      return jsonOutput({
+        status: "success",
+        message: "Dispositivo autorizado com sucesso!",
+        slotKey: matchedKey,
+        role: "guest",
+        name: targetSlot.name
+      });
+    }
+
+    // 3. VALIDAÇÃO DE DISPOSITIVO (Checa se o aparelho atual tem passe livre)
+    if (action === "validate_device") {
+      const auth = isDeviceAuthorized(p.deviceId, p.adminKey);
+      if (auth.authorized) {
+        return jsonOutput({
+          status: "success",
+          authorized: true,
+          role: auth.role,
+          name: auth.name || "Administrador"
+        });
+      }
+      return jsonOutput({ status: "unauthorized", authorized: false, message: "Dispositivo não autorizado." });
+    }
+
+    // 4. DOWNLOAD DIRETO PROTEGIDO
+    if (action === "download" && p.fileId) {
+      const auth = isDeviceAuthorized(p.deviceId, p.adminKey);
+      if (!auth.authorized) {
+        return jsonOutput({ status: "unauthorized", message: "Download bloqueado: dispositivo não autorizado." });
+      }
+
+      const file = DriveApp.getFileById(p.fileId);
       const fileSize = file.getSize();
 
-      // Entrega o arquivo em base64 diretamente para o navegador do celular salvar na memória (arquivos até 12MB)
       if (fileSize <= 12 * 1024 * 1024) {
         const blob = file.getBlob();
         return ContentService.createTextOutput(JSON.stringify({
@@ -112,23 +286,30 @@ function doGet(e) {
       } else {
         return ContentService.createTextOutput(JSON.stringify({
           status: "direct",
-          downloadUrl: "https://drive.usercontent.google.com/download?id=" + e.parameter.fileId + "&export=download",
+          downloadUrl: "https://drive.usercontent.google.com/download?id=" + p.fileId + "&export=download",
           fileName: file.getName()
         })).setMimeType(ContentService.MimeType.JSON);
       }
     }
 
-    // 2. Listagem de Livros
+    // 5. LISTAGEM COMPLETA DO GOOGLE DRIVE (PROTEGIDA)
+    const authCheck = isDeviceAuthorized(p.deviceId, p.adminKey);
+    if (!authCheck.authorized) {
+      return jsonOutput({
+        status: "unauthorized",
+        message: "Acesso restrito. Dispositivo não autorizado.",
+        total: 0,
+        books: []
+      });
+    }
+
     const folder = DriveApp.getFolderById(FOLDER_ID);
-    
-    // Tenta garantir que a pasta esteja visível para leitura com link
     try {
       folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     } catch (permErr) {}
 
     const files = folder.getFiles();
     const books = [];
-    let count = 0;
 
     while (files.hasNext()) {
       const file = files.next();
@@ -141,7 +322,6 @@ function doGet(e) {
       else if (lower.endsWith(".mobi")) format = "MOBI";
 
       if (format) {
-        count++;
         const parsed = parseFilename(name);
         const size = file.getSize();
         const dateAdded = Utilities.formatDate(file.getDateCreated(), "America/Sao_Paulo", "dd/MM/yyyy");
@@ -163,33 +343,31 @@ function doGet(e) {
           fileName: name,
           driveUrl: "https://drive.google.com/file/d/" + fileId + "/view?usp=sharing",
           downloadUrl: "https://drive.usercontent.google.com/download?id=" + fileId + "&export=download",
-          // Thumbnail oficial para pré-visualização
           thumbnailUrl: "https://drive.google.com/thumbnail?id=" + fileId + "&sz=w600"
         });
       }
     }
 
-    // Ordenar livros por data de adição (mais recentes primeiro)
     books.sort(function(a, b) {
       return b.sizeBytes - a.sizeBytes;
     });
 
-    const result = {
+    return jsonOutput({
       status: "success",
       total: books.length,
       lastSync: new Date().toISOString(),
       books: books
-    };
-
-    return ContentService.createTextOutput(JSON.stringify(result))
-      .setMimeType(ContentService.MimeType.JSON);
+    });
 
   } catch (err) {
-    const errorResponse = {
+    return jsonOutput({
       status: "error",
       message: err.toString()
-    };
-    return ContentService.createTextOutput(JSON.stringify(errorResponse))
-      .setMimeType(ContentService.MimeType.JSON);
+    });
   }
+}
+
+function jsonOutput(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
 }

@@ -54,7 +54,28 @@
 - **Sanitização de Títulos:** Correção de falhas legadas de codificação de caracteres em títulos do acervo.
 - **Invalidação Proativa de Cache (v5):**
   - Cache local atualizado para `drive_books_cache_v5` com limpeza automática de versões legadas (`v1` a `v4`).
-  - Atualização dos parâmetros `?v=20260919_v5` no `index.html` garantindo visualização instantânea em celulares e computadores.
+
+### ✅ Fase 7: Segurança & Controle de Acesso Restrito a 3 Dispositivos
+- **Acesso Restrito a 3 Slots Físicos:**
+  - **Slot 1 (Autoridade Máxima / Admin):** Laptop do Gehard com controle total, sem risco de bloqueio.
+  - **Slot 2 (Convidado 1):** Aparelho autorizado via convite descartável de uso único (*One-Time Link*).
+  - **Slot 3 (Convidado 2):** Aparelho autorizado via convite descartável de uso único (*One-Time Link*).
+- **Autoridade Máxima & Painel de Controle no Laptop:**
+  - O laptop do Gehard é reconhecido automaticamente em desenvolvimento local (`localhost`, `127.0.0.1`, `file://`) e em produção via chave mestre persistente.
+  - Botão exclusivo **🛡️ Admin** na barra de navegação (apenas visível para o Admin).
+  - **Painel Modal de Gestão de Convites:**
+    - Exibe o status em tempo real dos 3 slots (Ativo/Aguardando ativação).
+    - Botão **📋 Copiar Link** para copiar o link completo do convite direto para a área de transferência e colar no WhatsApp.
+    - Botão **🔄 Resetar Slot** para revogar um aparelho ou gerar um novo link de convite instantaneamente.
+- **Vínculo Físico de Aparelho (*Device Fingerprint / Token*):**
+  - O link de convite é de uso estritamente único. Ao ser aberto no celular do convidado, ele registra o ID exclusivo do navegador no `PropertiesService` do Google Apps Script e invalida o link.
+  - A URL do navegador é limpa automaticamente via `window.history.replaceState`, impedindo que o link seja copiado ou repassado para terceiros.
+- **Tela de Bloqueio Elegante (*Obsidian Dark Lock Screen*):**
+  - Visitantes não autorizados se deparam com a tela de proteção escura com efeito glassmorphism e campo para inserção manual de código de convite.
+  - Gatilho discreto de login de administrador com a Chave Mestre de Segurança.
+- **Invalidação de Cache Proativa (v6):**
+  - Cache local atualizado para `drive_books_cache_v6` com limpeza de versões legadas (`v1` a `v5`).
+  - Tags de scripts e estilos atualizadas para `?v=20260919_v6`.
 
 ---
 
@@ -64,61 +85,13 @@
 | :--- | :--- |
 | [`index.html`](./index.html) | Estrutura semântica: header com busca instantânea, botão de sincronização, filtros, grid de livros e modal de detalhes. |
 | [`style.css`](./style.css) | Sistema de design completo e responsivo (desktop, tablet, mobile) sem dependências externas. |
-| [`app.js`](./app.js) | Lógica da aplicação: integração com Google Apps Script, cache v5, busca instantânea, paginação fluida e downloads. |
+| [`app.js`](./app.js) | Lógica da aplicação: integração com Google Apps Script, cache v6, busca instantânea, paginação fluida e downloads. |
 | [`google-drive-sync.gs`](./google-drive-sync.gs) | Script do Google Apps Script para leitura contínua e em tempo real da pasta do Google Drive. |
 | [`scan_books.py`](./scan_books.py) | Indexador Python com extração profunda e resiliente de capas. |
 | [`books.json`](./books.json) & [`books-data.js`](./books-data.js) | Base de dados estruturada com 661 livros e 100% de capas cobertas. |
 | [`capas/`](./capas/) | Diretório com 661 capas reais indexadas deterministicamente por hash SHA-256. |
 | [`.gitignore`](./.gitignore) | Proteção para não subir arquivos binários pesados de livros para o repositório Git. |
 | [`PROJETO_STATUS.md`](./PROJETO_STATUS.md) | Documentação de status e arquitetura do projeto. |
-
----
-
-## 🛡️ Próxima Etapa: Segurança & Controle de Acesso por Dispositivo
-
-> **Objetivo:** Restringir o acesso à biblioteca para **apenas 3 pessoas**, garantindo que o acesso venha exclusivamente dos seus aparelhos físicos autorizados, sem risco de compartilhamento de links.
-
-### Arquitetura Planejada: Convites de Uso Único (*One-Time Invite Links*) + Whitelist de Dispositivos
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as Convidado (Celular)
-    participant Site as Site (GitHub Pages)
-    participant GAS as Google Apps Script (Drive)
-    
-    Note over User,GAS: 1. Primeiro Acesso (Ativação Única)
-    User->>Site: Clica no link exclusivo (?convite=CODIGO_UNICO)
-    Site->>Site: Gera um identificador único de dispositivo (UUID)
-    Site->>GAS: Solicita validação do convite + registra dispositivo
-    alt Convite Válido e Não Utilizado
-        GAS->>GAS: Queima o convite (usado = true)
-        GAS->>GAS: Salva o aparelho na Whitelist permanente
-        GAS-->>Site: Autorizado com sucesso!
-        Site->>Site: Salva chave no aparelho (localStorage) e limpa a URL
-        Site->>User: Libera a biblioteca completa!
-    else Convite Já Utilizado / Inválido
-        GAS-->>Site: Erro: convite já expirado
-        Site->>User: Tela de Bloqueio ("Link já utilizado em outro aparelho")
-    end
-
-    Note over User,GAS: 2. Próximos Acessos (Automático)
-    User->>Site: Abre o site diretamente
-    Site->>GAS: Consulta livros enviando a Chave do Dispositivo
-    alt Dispositivo cadastrado na Whitelist
-        GAS-->>Site: Retorna os livros e links do Drive
-    else Dispositivo Não Autorizado
-        GAS-->>Site: Acesso Negado (403)
-        Site->>User: Exibe tela de bloqueio ("Dispositivo não autorizado")
-    end
-```
-
-### Principais Características da Solução:
-1. **O link queima no primeiro clique:** Cada pessoa recebe um link único (ex: `site.com/?convite=COD_AMIGO1`). Assim que o celular abre o link, o convite é invalidado no Google Apps Script. Se tentarem repassar o link em grupos ou para outras pessoas, ele não funcionará.
-2. **Identificação por Aparelho:** O navegador do aparelho autorizado armazena um token criptográfico local. Apenas aquele celular/navegador consegue carregar a biblioteca.
-3. **Tela de Bloqueio Elegante (Dark Glassmorphism):** Qualquer acesso que não possua dispositivo autorizado na whitelist se depara com uma tela de bloqueio informando que a biblioteca é privada.
-4. **Proteção na API do Google Drive:** O script do Drive se recusa a entregar os livros e links se a requisição não vier de um dispositivo registrado na Whitelist.
-5. **Gerenciamento Centralizado:** O proprietário pode resetar convites ou remover dispositivos a qualquer momento diretamente pelo Google Apps Script (`PropertiesService`).
 
 ---
 

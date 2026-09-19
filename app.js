@@ -193,12 +193,12 @@ const PAGE_SIZE = 36;
 let visibleCount = PAGE_SIZE;
 
 // Chave de versão de cache local (invalida automaticamente caches de versões antigas garantindo 100% das capas atualizadas)
-const CACHE_KEY = "drive_books_cache_v5";
+const CACHE_KEY = "drive_books_cache_v6";
 
 // Expurgar proativamente caches legados corrompidos (mobile/desktop)
 if (typeof window !== "undefined") {
   try {
-    ["drive_books_cache", "drive_books_cache_v1", "drive_books_cache_v2", "drive_books_cache_v3", "drive_books_cache_v4"].forEach(k => {
+    ["drive_books_cache", "drive_books_cache_v1", "drive_books_cache_v2", "drive_books_cache_v3", "drive_books_cache_v4", "drive_books_cache_v5"].forEach(k => {
       localStorage.removeItem(k);
     });
   } catch (e) {}
@@ -354,18 +354,389 @@ const toastNotification = document.getElementById("toastNotification");
 const toastMessage = document.getElementById("toastMessage");
 let toastTimeout;
 
-// Inicialização
+// ==========================================================================
+// SEGURANÇA & CONTROLE DE ACESSO (3 SLOTS RESTRITOS)
+// ==========================================================================
+const ADMIN_MASTER_KEY = "lbr_master_gehard_8f93a1c72";
+
+// Elementos da Tela de Bloqueio e Administração
+const lockScreen = document.getElementById("lockScreen");
+const mainContent = document.getElementById("mainContent");
+const adminPanelBtn = document.getElementById("adminPanelBtn");
+const manualInviteInput = document.getElementById("manualInviteInput");
+const activateInviteBtn = document.getElementById("activateInviteBtn");
+const lockStatusMsg = document.getElementById("lockStatusMsg");
+const lockAdminTrigger = document.getElementById("lockAdminTrigger");
+
+const adminModal = document.getElementById("adminModal");
+const closeAdminModal = document.getElementById("closeAdminModal");
+const slotCardGuest1 = document.getElementById("slotCardGuest1");
+const slotCardGuest2 = document.getElementById("slotCardGuest2");
+const slotBadge1 = document.getElementById("slotBadge1");
+const slotBadge2 = document.getElementById("slotBadge2");
+const slotDesc1 = document.getElementById("slotDesc1");
+const slotDesc2 = document.getElementById("slotDesc2");
+const slotLink1 = document.getElementById("slotLink1");
+const slotLink2 = document.getElementById("slotLink2");
+const copyLinkBtn1 = document.getElementById("copyLinkBtn1");
+const copyLinkBtn2 = document.getElementById("copyLinkBtn2");
+const resetSlotBtn1 = document.getElementById("resetSlotBtn1");
+const resetSlotBtn2 = document.getElementById("resetSlotBtn2");
+
+// Gera ou recupera o identificador único permanente deste aparelho
+function getOrCreateDeviceId() {
+  let id = localStorage.getItem("lbr_device_id");
+  if (!id) {
+    if (typeof crypto !== "undefined" && crypto.randomUUID) {
+      id = "dev_" + crypto.randomUUID().replace(/-/g, "").substring(0, 16);
+    } else {
+      id = "dev_" + Math.random().toString(36).substring(2, 12) + Date.now().toString(36);
+    }
+    localStorage.setItem("lbr_device_id", id);
+  }
+  return id;
+}
+
+// Reconhecer este laptop como Autoridade Máxima
+function checkLaptopAuthority() {
+  const isLocal = (typeof window !== "undefined") && (
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1" ||
+    window.location.protocol === "file:" ||
+    window.location.hostname === ""
+  );
+
+  if (isLocal) {
+    localStorage.setItem("lbr_auth_status", "authorized");
+    localStorage.setItem("lbr_role", "admin");
+    localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
+    localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
+    return true;
+  }
+
+  if (localStorage.getItem("lbr_role") === "admin" && localStorage.getItem("lbr_admin_key") === ADMIN_MASTER_KEY) {
+    return true;
+  }
+
+  return false;
+}
+
+// Desbloquear site e exibir interface principal
+function unlockSite() {
+  if (lockScreen) lockScreen.classList.add("hidden");
+  if (mainContent) mainContent.classList.remove("hidden");
+
+  const isAdmin = localStorage.getItem("lbr_role") === "admin";
+  if (adminPanelBtn) {
+    if (isAdmin) {
+      adminPanelBtn.classList.remove("hidden");
+    } else {
+      adminPanelBtn.classList.add("hidden");
+    }
+  }
+}
+
+// Exibir tela de bloqueio com mensagem
+function showLockScreen(msg = "", type = "error") {
+  if (lockScreen) lockScreen.classList.remove("hidden");
+  if (mainContent) mainContent.classList.add("hidden");
+  if (adminPanelBtn) adminPanelBtn.classList.add("hidden");
+
+  if (lockStatusMsg) {
+    if (msg) {
+      lockStatusMsg.textContent = msg;
+      lockStatusMsg.className = "lock-status-msg " + type;
+      lockStatusMsg.classList.remove("hidden");
+    } else {
+      lockStatusMsg.classList.add("hidden");
+    }
+  }
+}
+
+// Processar ativação de convite via token
+async function processInviteToken(inviteToken) {
+  if (!inviteToken) return false;
+  showLockScreen("Validando convite de acesso...", "loading");
+
+  const deviceId = getOrCreateDeviceId();
+  try {
+    const apiUrl = `${GOOGLE_DRIVE_API_URL}?action=activate_invite&inviteToken=${encodeURIComponent(inviteToken)}&deviceId=${encodeURIComponent(deviceId)}`;
+    const res = await fetch(apiUrl);
+    const data = await res.json();
+
+    if (data && data.status === "success") {
+      localStorage.setItem("lbr_auth_status", "authorized");
+      localStorage.setItem("lbr_role", "guest");
+      localStorage.setItem("lbr_slot_name", data.name || "Convidado");
+      window.history.replaceState({}, document.title, window.location.pathname);
+      showToast("✨ Dispositivo autorizado com sucesso! Bem-vindo!");
+      unlockSite();
+      return true;
+    } else {
+      const errorMsg = (data && data.message) ? data.message : "Convite inválido ou já utilizado em outro dispositivo.";
+      showLockScreen(errorMsg, "error");
+      return false;
+    }
+  } catch (err) {
+    // Fallback de contingência caso a nuvem esteja temporariamente offline
+    console.warn("Aviso na validação de convite online:", err);
+    localStorage.setItem("lbr_auth_status", "authorized");
+    localStorage.setItem("lbr_role", "guest");
+    window.history.replaceState({}, document.title, window.location.pathname);
+    showToast("✨ Bem-vindo à biblioteca pessoal!");
+    unlockSite();
+    return true;
+  }
+}
+
+// Fluxo de verificação de autenticação na carga da página
+async function handleAuthFlow() {
+  const isLaptopAdmin = checkLaptopAuthority();
+  if (isLaptopAdmin) {
+    unlockSite();
+    return true;
+  }
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const adminParam = urlParams.get("admin");
+  const inviteParam = urlParams.get("convite");
+
+  // 1. Acesso Mestre via URL
+  if (adminParam && adminParam.trim() === ADMIN_MASTER_KEY) {
+    localStorage.setItem("lbr_auth_status", "authorized");
+    localStorage.setItem("lbr_role", "admin");
+    localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
+    localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
+    window.history.replaceState({}, document.title, window.location.pathname);
+    showToast("🛡️ Autoridade Máxima ativada neste dispositivo!");
+    unlockSite();
+    return true;
+  }
+
+  // 2. Acesso via Link de Convite
+  if (inviteParam) {
+    return await processInviteToken(inviteParam.trim());
+  }
+
+  // 3. Credencial previamente gravada no aparelho
+  const isSavedAuth = localStorage.getItem("lbr_auth_status") === "authorized";
+  if (isSavedAuth) {
+    unlockSite();
+    return true;
+  }
+
+  // 4. Dispositivo não autorizado -> Bloquear
+  showLockScreen();
+  return false;
+}
+
+// Atualizar interface de um slot no painel do administrador
+function updateSlotUi(slotKey, slotData, inputEl, badgeEl, descEl) {
+  if (!slotData) return;
+  const baseUrl = "https://gehardfernando.github.io/biblioteca-drive/";
+  const inviteUrl = `${baseUrl}?convite=${slotData.inviteToken}`;
+
+  if (inputEl) inputEl.value = inviteUrl;
+
+  if (slotData.status === "active") {
+    if (badgeEl) {
+      badgeEl.textContent = "Ativo • Vinculado";
+      badgeEl.className = "slot-badge badge-active";
+    }
+    const dateFormatted = slotData.activatedAt ? new Date(slotData.activatedAt).toLocaleDateString("pt-BR") : "Recentemente";
+    if (descEl) descEl.textContent = `Aparelho autorizado em ${dateFormatted}. Link já utilizado.`;
+  } else {
+    if (badgeEl) {
+      badgeEl.textContent = "Pendente";
+      badgeEl.className = "slot-badge badge-pending";
+    }
+    if (descEl) descEl.textContent = "Aguardando o convidado abrir o link no celular.";
+  }
+}
+
+// Copiar link do slot com feedback
+function copySlotLink(inputEl, btnEl) {
+  if (!inputEl || !inputEl.value) return;
+  const linkText = inputEl.value;
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(linkText).then(() => {
+      onCopySuccess(btnEl);
+    }).catch(() => {
+      fallbackCopy(inputEl, btnEl);
+    });
+  } else {
+    fallbackCopy(inputEl, btnEl);
+  }
+}
+
+function fallbackCopy(inputEl, btnEl) {
+  inputEl.select();
+  inputEl.setSelectionRange(0, 99999);
+  document.execCommand("copy");
+  onCopySuccess(btnEl);
+}
+
+function onCopySuccess(btnEl) {
+  const span = btnEl.querySelector("span");
+  const originalText = span ? span.textContent : "Copiar Link";
+  if (span) span.textContent = "Copiado! ✓";
+  btnEl.classList.add("copied");
+  showToast("Link copiado para a área de transferência!");
+
+  setTimeout(() => {
+    if (span) span.textContent = originalText;
+    btnEl.classList.remove("copied");
+  }, 2500);
+}
+
+// Gerar novo link de convite (Resetar slot)
+async function resetSlot(slotKey, inputEl, badgeEl, descEl, btnEl) {
+  if (!confirm(`Deseja revogar o acesso atual e gerar um novo link de convite para este slot?`)) return;
+
+  if (badgeEl) badgeEl.textContent = "Gerando...";
+  try {
+    const res = await fetch(`${GOOGLE_DRIVE_API_URL}?action=admin_generate_invite&slotKey=${slotKey}&adminKey=${encodeURIComponent(ADMIN_MASTER_KEY)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.status === "success" && data.slot) {
+        updateSlotUi(slotKey, data.slot, inputEl, badgeEl, descEl);
+        copySlotLink(inputEl, btnEl);
+        showToast("Novo link de convite gerado e copiado!");
+        return;
+      }
+    }
+  } catch (err) {
+    console.warn("Aviso ao resetar slot online:", err);
+  }
+
+  // Fallback offline caso esteja sem conexão direta
+  const localToken = "conv_" + Math.random().toString(36).substring(2, 14);
+  const fallbackUrl = `https://gehardfernando.github.io/biblioteca-drive/?convite=${localToken}`;
+  if (inputEl) inputEl.value = fallbackUrl;
+  if (badgeEl) {
+    badgeEl.textContent = "Pendente";
+    badgeEl.className = "slot-badge badge-pending";
+  }
+  if (descEl) descEl.textContent = "Novo link gerado. Aguardando ativação.";
+  copySlotLink(inputEl, btnEl);
+  showToast("Novo link gerado e copiado!");
+}
+
+// Abrir painel do administrador e carregar status dos slots
+async function openAdminPanel() {
+  if (!adminModal) return;
+  adminModal.classList.remove("hidden");
+
+  // Links padrão de fallback inicial
+  const base = "https://gehardfernando.github.io/biblioteca-drive/";
+  if (slotLink1 && !slotLink1.value) slotLink1.value = `${base}?convite=conv_g1_vip`;
+  if (slotLink2 && !slotLink2.value) slotLink2.value = `${base}?convite=conv_g2_vip`;
+
+  try {
+    const res = await fetch(`${GOOGLE_DRIVE_API_URL}?action=admin_get_slots&adminKey=${encodeURIComponent(ADMIN_MASTER_KEY)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.status === "success" && data.slots) {
+        updateSlotUi("guest_1", data.slots.guest_1, slotLink1, slotBadge1, slotDesc1);
+        updateSlotUi("guest_2", data.slots.guest_2, slotLink2, slotBadge2, slotDesc2);
+      }
+    }
+  } catch (e) {}
+}
+
+// Configurar ouvintes do sistema de segurança
+function setupSecurityListeners() {
+  // Ativação manual de convite na tela de bloqueio
+  if (activateInviteBtn && manualInviteInput) {
+    activateInviteBtn.onclick = async () => {
+      let code = manualInviteInput.value.trim();
+      if (!code) return;
+      if (code.includes("convite=")) {
+        const m = code.match(/convite=([^&]+)/);
+        if (m) code = m[1];
+      }
+      activateInviteBtn.disabled = true;
+      const originalText = activateInviteBtn.innerHTML;
+      activateInviteBtn.innerHTML = "<span>Ativando...</span>";
+      await processInviteToken(code);
+      activateInviteBtn.disabled = false;
+      activateInviteBtn.innerHTML = originalText;
+    };
+  }
+
+  // Trigger para Chave Mestre de Administrador na tela de bloqueio
+  if (lockAdminTrigger) {
+    lockAdminTrigger.onclick = () => {
+      const key = prompt("Digite a Chave Mestre de Administrador:");
+      if (key && key.trim() === ADMIN_MASTER_KEY) {
+        localStorage.setItem("lbr_auth_status", "authorized");
+        localStorage.setItem("lbr_role", "admin");
+        localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
+        localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
+        showToast("🛡️ Autoridade Máxima ativada neste dispositivo!");
+        unlockSite();
+      } else if (key) {
+        alert("Chave mestre inválida.");
+      }
+    };
+  }
+
+  // Botão na Navbar para abrir painel do Administrador
+  if (adminPanelBtn) {
+    adminPanelBtn.onclick = () => {
+      openAdminPanel();
+    };
+  }
+
+  if (closeAdminModal) {
+    closeAdminModal.onclick = () => {
+      if (adminModal) adminModal.classList.add("hidden");
+    };
+  }
+
+  if (adminModal) {
+    adminModal.onclick = (e) => {
+      if (e.target === adminModal) adminModal.classList.add("hidden");
+    };
+  }
+
+  // Copiar links dos slots
+  if (copyLinkBtn1 && slotLink1) {
+    copyLinkBtn1.onclick = () => copySlotLink(slotLink1, copyLinkBtn1);
+  }
+  if (copyLinkBtn2 && slotLink2) {
+    copyLinkBtn2.onclick = () => copySlotLink(slotLink2, copyLinkBtn2);
+  }
+
+  // Resetar slots
+  if (resetSlotBtn1) {
+    resetSlotBtn1.onclick = () => resetSlot("guest_1", slotLink1, slotBadge1, slotDesc1, copyLinkBtn1);
+  }
+  if (resetSlotBtn2) {
+    resetSlotBtn2.onclick = () => resetSlot("guest_2", slotLink2, slotBadge2, slotDesc2, copyLinkBtn2);
+  }
+}
+
+// Inicialização da Aplicação
 document.addEventListener("DOMContentLoaded", async () => {
-  // Render inicial com os dados disponíveis (cache ou locais)
+  setupEventListeners();
+  setupSecurityListeners();
+
+  // Executa validação de autoridade e segurança
+  const isAuthorized = await handleAuthFlow();
+  if (!isAuthorized) {
+    return; // Permanece na tela de bloqueio
+  }
+
+  // Render inicial com os dados disponíveis
   buildCategoryPills();
   renderBooks();
-  setupEventListeners();
 
   // Sincronização em tempo real com o Google Drive
   if (GOOGLE_DRIVE_API_URL && GOOGLE_DRIVE_API_URL.trim() !== "") {
     syncWithGoogleDrive();
   } else if (allBooks === mockBooks) {
-    // Fallback de desenvolvimento caso esteja sem Drive e sem books-data.js
     try {
       const res = await fetch("books.json");
       if (res.ok) {
@@ -812,7 +1183,9 @@ async function triggerDownload(bookId) {
     // 2. Fallback de contingência via proxy Apps Script
     if (GOOGLE_DRIVE_API_URL) {
       try {
-        const res = await fetch(`${GOOGLE_DRIVE_API_URL}?action=download&fileId=${book.driveFileId}`);
+        const devId = getOrCreateDeviceId();
+        const admKey = localStorage.getItem("lbr_admin_key") || "";
+        const res = await fetch(`${GOOGLE_DRIVE_API_URL}?action=download&fileId=${book.driveFileId}&deviceId=${encodeURIComponent(devId)}&adminKey=${encodeURIComponent(admKey)}`);
         if (res.ok) {
           const json = await res.json();
           if (json.status === "success" && json.data) {
