@@ -40,6 +40,15 @@
 - **Envio por E-mail do Kindle (`@kindle.com`):** Campo persistente no `localStorage` para quem prefere envio automático por e-mail com assunto e corpo pré-formatados.
 - **Atalho no Cabeçalho:** Acesso rápido ao portal Send to Kindle no topo da página.
 
+### ✅ Fase 5: Correção Definitiva de Capas & Invalidação de Cache Mobile
+- **Diagnóstico da Causa Raiz:** O uso prévio de índices sequenciais (`book-{idx}`) no `scan_books.py` fez com que a remoção de duplicatas deslocasse os índices em cascata (421 livros ficaram com capas trocadas, como *O Hobbit* exibindo a capa de *O Silêncio dos Inocentes*). O cache do `localStorage` no mobile congelou as capas erradas nos celulares dos usuários.
+- **Nomes de Capas Determinísticos e Imutáveis:** Nomes de capa e IDs gerados via hash SHA-256 do arquivo (`cov_<hash>.<ext>`), blindando o catálogo contra descompassos mesmo que livros sejam adicionados ou removidos.
+- **Extração e Auditoria 100% Precisas:** 646 capas extraídas diretamente do interior de cada EPUB atual. Expurgadas 779 capas legadas e órfãs. Auditoria automatizada confirmou 0 capas trocadas.
+- **Invalidação de Cache & Cache Busting:**
+  - Cache local versionado para `drive_books_cache_v4` com limpeza proativa de caches legados corrompidos.
+  - Parâmetros `?v=20260918_v4` em `<script>` e `<link>` para contornar o cache HTTP agressivo de navegadores móveis (Safari iOS, Chrome Android).
+  - Normalização de títulos e nomes de arquivo com remoção de acentos para emparelhamento perfeito de capas nos livros sincronizados via Google Drive.
+
 ---
 
 ## 📂 Arquivos do Projeto

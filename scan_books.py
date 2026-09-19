@@ -13,6 +13,8 @@ import html
 import posixpath
 import zipfile
 import datetime
+import hashlib
+import urllib.parse
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -106,7 +108,7 @@ def detect_genre(title, author, subjects):
     return "Literatura Geral"
 
 def extract_cover_path(z, opf_root, opf_path):
-    """Encontra o caminho interno da capa dentro do EPUB."""
+    """Encontra o caminho interno da capa dentro do EPUB de forma resiliente."""
     opf_dir = posixpath.dirname(opf_path)
     
     # 1. Meta tag com name="cover"
@@ -124,9 +126,9 @@ def extract_cover_path(z, opf_root, opf_path):
         media_type = item.attrib.get('media-type', '')
         props = item.attrib.get('properties', '')
         if item_id and href:
-            manifest[item_id] = (href, media_type)
+            manifest[item_id] = (urllib.parse.unquote(href), media_type)
         if 'cover-image' in props and href:
-            cover_by_prop = href
+            cover_by_prop = urllib.parse.unquote(href)
 
     cover_href = None
     if cover_id and cover_id in manifest:
@@ -135,13 +137,21 @@ def extract_cover_path(z, opf_root, opf_path):
         cover_href = cover_by_prop
     else:
         for item_id, (href, m_type) in manifest.items():
-            if m_type.startswith('image/') and ('cover' in item_id.lower() or 'cover' in href.lower()):
+            if m_type.startswith('image/') and any(k in item_id.lower() or k in href.lower() for k in ['cover', 'capa']):
                 cover_href = href
                 break
                 
     if cover_href:
         full_cover = posixpath.normpath(posixpath.join(opf_dir, cover_href)) if opf_dir else cover_href
-        return full_cover
+        if full_cover in z.namelist():
+            return full_cover
+        # Fallback de busca insensível a maiúsculas/minúsculas
+        full_cover_lower = full_cover.lower()
+        cover_href_lower = cover_href.lower()
+        for name in z.namelist():
+            nl = name.lower()
+            if nl == full_cover_lower or nl.endswith(cover_href_lower):
+                return name
     return None
 
 def scan_books(source_dir=DEFAULT_SOURCE):
@@ -161,6 +171,7 @@ def scan_books(source_dir=DEFAULT_SOURCE):
 
     books = []
     covers_extracted = 0
+    valid_cover_files = set()
 
     for idx, filename in enumerate(files, start=1):
         filepath = os.path.join(source_dir, filename)
@@ -168,7 +179,10 @@ def scan_books(source_dir=DEFAULT_SOURCE):
         mod_time = os.path.getmtime(filepath)
         date_added = datetime.datetime.fromtimestamp(mod_time).strftime("%d/%m/%Y")
         format_type = "PDF" if filename.lower().endswith('.pdf') else "EPUB"
-        book_id = f"book-{idx}"
+
+        # Identificador estável determinístico derivado do nome do arquivo
+        file_hash = hashlib.sha256(filename.encode('utf-8')).hexdigest()[:12]
+        book_id = f"book-{file_hash}"
 
         fn_title, fn_author = parse_filename(filename)
         title = fn_title
@@ -209,30 +223,31 @@ def scan_books(source_dir=DEFAULT_SOURCE):
                             d_elem = opf_root.find('.//{*}description')
                             if d_elem is not None and d_elem.text:
                                 synopsis = clean_html(d_elem.text)
-                                
+                                    
                             # Assuntos
                             for s in opf_root.findall('.//{*}subject'):
                                 if s.text:
                                     subjects.append(s.text.strip())
                                     
-                            # Capa
+                            # Extração resiliente da capa
                             cover_path = extract_cover_path(z, opf_root, opf_path)
                             if cover_path and cover_path in z.namelist():
                                 ext = os.path.splitext(cover_path)[1].lower() or '.jpg'
                                 if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
                                     ext = '.jpg'
-                                dest_cover_name = f"{book_id}{ext}"
+                                dest_cover_name = f"cov_{file_hash}{ext}"
                                 dest_cover_path = os.path.join(COVERS_DIR, dest_cover_name)
                                 
-                                # Extrair se ainda não existir
-                                if not os.path.exists(dest_cover_path):
-                                    cover_bytes = z.read(cover_path)
-                                    with open(dest_cover_path, 'wb') as cov_f:
-                                        cov_f.write(cover_bytes)
+                                # Sempre extrair a capa correta do EPUB para garantir 100% de correspondência
+                                cover_bytes = z.read(cover_path)
+                                with open(dest_cover_path, 'wb') as cov_f:
+                                    cov_f.write(cover_bytes)
+                                
                                 cover_filename = f"capas/{dest_cover_name}"
+                                valid_cover_files.add(dest_cover_name)
                                 covers_extracted += 1
             except Exception:
-                # Se falhar no parsing do zip, usa o nome do arquivo
+                # Se falhar no parsing do zip, mantém os dados do arquivo
                 pass
 
         category = detect_genre(title, author, subjects)
@@ -261,8 +276,18 @@ def scan_books(source_dir=DEFAULT_SOURCE):
         }
         books.append(book_data)
 
-    print(f"[+] Total de livros indexados: {len(books)}")
-    print(f"[+] Capas reais extraídas: {covers_extracted}")
+    # Limpar capas antigas órfãs ou legadas (ex: book-*.jpeg) que causavam descompasso
+    removed_count = 0
+    if os.path.exists(COVERS_DIR):
+        for old_file in os.listdir(COVERS_DIR):
+            if old_file not in valid_cover_files:
+                try:
+                    os.remove(os.path.join(COVERS_DIR, old_file))
+                    removed_count += 1
+                except Exception:
+                    pass
+    if removed_count > 0:
+        print(f"[+] Capas legadas/órfãs removidas da pasta capas/: {removed_count}")
 
     # Salvar books.json
     with open(OUTPUT_JSON, "w", encoding="utf-8") as f:

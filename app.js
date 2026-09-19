@@ -192,13 +192,43 @@ let isListView = false;
 const PAGE_SIZE = 36;
 let visibleCount = PAGE_SIZE;
 
+// Chave de versão de cache local (invalida automaticamente caches de versões antigas com capas incorretas)
+const CACHE_KEY = "drive_books_cache_v4";
+
+// Expurgar proativamente caches legados corrompidos (mobile/desktop)
+if (typeof window !== "undefined") {
+  try {
+    ["drive_books_cache", "drive_books_cache_v1", "drive_books_cache_v2", "drive_books_cache_v3"].forEach(k => {
+      localStorage.removeItem(k);
+    });
+  } catch (e) {}
+}
+
+// Normalizador de chaves para casamento resiliente de capas (ignora acentos, pontuação e extensões)
+function normalizeCoverKey(str) {
+  if (!str) return "";
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\.epub$|\.pdf$/i, "")
+    .replace(/[^a-z0-9]/g, "")
+    .trim();
+}
+
 // Mapa de capas locais pré-indexadas (para reutilizar capas de alta definição nos livros do Drive)
 const localCoversMap = new Map();
 if (typeof window !== "undefined" && Array.isArray(window.REAL_BOOKS)) {
   window.REAL_BOOKS.forEach(b => {
-    if (b.title && b.cover) {
-      localCoversMap.set(b.title.toLowerCase().trim(), b.cover);
-      if (b.fileName) localCoversMap.set(b.fileName.toLowerCase().trim(), b.cover);
+    if (b.cover) {
+      if (b.title) {
+        localCoversMap.set(b.title.toLowerCase().trim(), b.cover);
+        localCoversMap.set(normalizeCoverKey(b.title), b.cover);
+      }
+      if (b.fileName) {
+        localCoversMap.set(b.fileName.toLowerCase().trim(), b.cover);
+        localCoversMap.set(normalizeCoverKey(b.fileName), b.cover);
+      }
     }
   });
 }
@@ -206,7 +236,7 @@ if (typeof window !== "undefined" && Array.isArray(window.REAL_BOOKS)) {
 // Catálogo ativo (com suporte a cache do Drive, dados locais ou fallback mock)
 let allBooks = (() => {
   if (typeof window !== "undefined") {
-    const cached = localStorage.getItem("drive_books_cache");
+    const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
@@ -363,9 +393,14 @@ async function syncWithGoogleDrive(forceRefresh = false) {
       const syncedBooks = data.books.map(driveBook => {
         const titleKey = (driveBook.title || "").toLowerCase().trim();
         const fileKey = (driveBook.fileName || "").toLowerCase().trim();
+        const normTitle = normalizeCoverKey(driveBook.title);
+        const normFile = normalizeCoverKey(driveBook.fileName);
         
-        // Tenta encontrar capa já extraída localmente
-        const matchedCover = localCoversMap.get(titleKey) || localCoversMap.get(fileKey);
+        // Tenta encontrar capa já extraída localmente de alta qualidade
+        const matchedCover = localCoversMap.get(titleKey) || 
+                             localCoversMap.get(fileKey) || 
+                             localCoversMap.get(normTitle) || 
+                             localCoversMap.get(normFile);
         const cover = matchedCover || driveBook.thumbnailUrl || generateDynamicCoverSvg(driveBook.title, driveBook.author, driveBook.format);
 
         return {
@@ -377,7 +412,7 @@ async function syncWithGoogleDrive(forceRefresh = false) {
       if (syncedBooks.length > 0) {
         allBooks = syncedBooks;
         try {
-          localStorage.setItem("drive_books_cache", JSON.stringify(syncedBooks));
+          localStorage.setItem(CACHE_KEY, JSON.stringify(syncedBooks));
         } catch (e) {}
 
         buildCategoryPills();
