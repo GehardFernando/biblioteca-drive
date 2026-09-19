@@ -23,10 +23,16 @@
 - **Deploy no GitHub Pages:** Publicação automática online e acessível de qualquer dispositivo.
 - **Sincronização em Tempo Real (Google Apps Script):**
   - Script [`google-drive-sync.gs`](./google-drive-sync.gs) conectado à pasta oficial do Drive (`1Cm-w4noHBr2FeF9ypnzgM6lAKvPob9Of`).
-  - Catálogo de **579 livros** indexados e lidos diretamente do Google Drive.
+  - Catálogo de **661 livros** indexados e organizados (com 120 livros em inglês devidamente etiquetados).
   - Carregamento instantâneo via cache local (`localStorage`) no navegador do celular/PC.
   - Botão de **Sincronização Manual** no cabeçalho com animação e notificação toast.
-  - Download direto dos arquivos pelo Google Drive.
+  - Download direto dos arquivos pelo Google Drive e servidor local.
+
+### ✅ Fase 3: Organização, Deduplicação & Padronização de Nomes
+- **Deduplicação Completa:** 39 livros duplicados/repetitivos removidos após análise minuciosa de integridade binária (MD5) e conteúdo textual.
+- **Padronização Canônica:** 100% dos 661 livros renomeados para o padrão formal `<Título> - <Autor>.epub`.
+- **Identificação de Idioma:** Detecção de texto e metadados identificou 120 obras em língua inglesa, padronizadas com a etiqueta `(English)` no nome do arquivo (`<Título> - <Autor> (English).epub`).
+- **Reindexação Total:** Execução do [`scan_books.py`](./scan_books.py) atualizando [`books.json`](./books.json), [`books-data.js`](./books-data.js) e mais de 640 capas reais em [`capas/`](./capas/).
 
 ---
 
@@ -36,11 +42,11 @@
 | :--- | :--- |
 | [`index.html`](./index.html) | Estrutura semântica: header com busca instantânea, botão de sincronização, filtros, grid de livros e modal de detalhes. |
 | [`style.css`](./style.css) | Sistema de design completo e responsivo (desktop, tablet, mobile) sem dependências externas. |
-| [`app.js`](./app.js) | Lógica da aplicação: integração com Google Apps Script, cache, busca instantânea (`/`), paginação fluida e downloads. |
+| [`app.js`](./app.js) | Lógica da aplicação: integração com Google Apps Script, cache, busca instantânea (incluindo filtro por `(English)`), paginação fluida e downloads. |
 | [`google-drive-sync.gs`](./google-drive-sync.gs) | Script do Google Apps Script para leitura contínua e em tempo real da pasta do Google Drive. |
 | [`scan_books.py`](./scan_books.py) | Indexador Python local para extração de capas em alta resolução de arquivos EPUB. |
-| [`books.json`](./books.json) & [`books-data.js`](./books-data.js) | Base de dados estruturada com 579 livros e fallback offline. |
-| [`capas/`](./capas/) | Diretório com mais de 560 capas reais extraídas dos livros. |
+| [`books.json`](./books.json) & [`books-data.js`](./books-data.js) | Base de dados estruturada com 661 livros e fallback offline. |
+| [`capas/`](./capas/) | Diretório com mais de 640 capas reais extraídas dos livros. |
 | [`.gitignore`](./.gitignore) | Proteção para não subir arquivos binários pesados de livros para o repositório Git. |
 | [`PROJETO_STATUS.md`](./PROJETO_STATUS.md) | Documentação de status e arquitetura do projeto. |
 

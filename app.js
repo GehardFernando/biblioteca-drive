@@ -501,7 +501,8 @@ function getFilteredAndSortedBooks() {
       const matchesSearch = 
         book.title.toLowerCase().includes(currentSearch) ||
         book.author.toLowerCase().includes(currentSearch) ||
-        book.category.toLowerCase().includes(currentSearch);
+        book.category.toLowerCase().includes(currentSearch) ||
+        (book.fileName && book.fileName.toLowerCase().includes(currentSearch));
 
       // Filtro de Categoria / Formato
       let matchesCategory = true;
