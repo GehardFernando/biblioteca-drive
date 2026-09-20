@@ -1833,6 +1833,39 @@ body.modal-open {
   }
 }
 
+/* Botão de Sair / Desconectar Aparelho na Navbar */
+.btn-logout-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  color: #fca5a5;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-logout-nav:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #f87171;
+  color: #ffffff;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.3);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 480px) {
+  .btn-logout-nav-text {
+    display: none;
+  }
+  .btn-logout-nav {
+    padding: 7px;
+  }
+}
+
 /* Página de Acesso / Gatekeeper (entrar.html) */
 body.auth-page {
   min-height: 100vh;
@@ -2439,6 +2472,34 @@ body.admin-page {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 10px;
+}
+
+.card-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-revoke-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.btn-revoke-all:hover {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #fca5a5;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
 }
 
 .btn-members-refresh {

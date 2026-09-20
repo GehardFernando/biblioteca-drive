@@ -43,7 +43,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20260919_v13" />
+  <link rel="stylesheet" href="style.css?v=20260919_v14" />
 </head>
 <body class="admin-page">
 
@@ -175,12 +175,21 @@
               <p class="card-subtitle">Dispositivos com acesso liberado e códigos aguardando ativação.</p>
             </div>
           </div>
-          <button class="btn-members-refresh" id="refreshMembersBtn" title="Recarregar Lista">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
-            </svg>
-            <span>Atualizar</span>
-          </button>
+          <div class="card-header-actions">
+            <button class="btn-revoke-all" id="revokeAllBtn" title="Revogar o acesso de todos os convidados de uma só vez">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+              <span>Revogar Todos</span>
+            </button>
+            <button class="btn-members-refresh" id="refreshMembersBtn" title="Recarregar Lista">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+              </svg>
+              <span>Atualizar</span>
+            </button>
+          </div>
         </div>
 
         <!-- Card Fixo: Gehard Laptop Master -->
@@ -214,6 +223,6 @@
     <span id="toastMessage">Pronto!</span>
   </div>
 
-  <script src="admin.js?v=20260919_v13"></script>
+  <script src="admin.js?v=20260919_v14"></script>
 </body>
 </html>

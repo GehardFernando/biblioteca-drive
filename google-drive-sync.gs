@@ -222,6 +222,31 @@ function doGet(e) {
       return jsonOutput({ status: "success", revoked: revoked, message: "Acesso/convite revogado." });
     }
 
+    if (action === "admin_revoke_all") {
+      if (p.adminKey !== ADMIN_MASTER_KEY) {
+        return jsonOutput({ status: "error", message: "Chave mestre inválida." });
+      }
+      const state = getSecurityState();
+      state.invites = [];
+      state.devices = {};
+      state.epoch = Date.now();
+      saveSecurityState(state);
+      return jsonOutput({ status: "success", message: "Todos os acessos e convites foram revogados com sucesso." });
+    }
+
+    if (action === "guest_logout") {
+      const deviceId = p.deviceId;
+      if (deviceId) {
+        const state = getSecurityState();
+        if (state.devices && state.devices[deviceId]) {
+          delete state.devices[deviceId];
+        }
+        saveSecurityState(state);
+        return jsonOutput({ status: "success", message: "Dispositivo desconectado com sucesso." });
+      }
+      return jsonOutput({ status: "error", message: "Dispositivo não especificado." });
+    }
+
     // 2. ATIVAÇÃO DE CONVITE / OTP
     if (action === "activate_otp" || action === "activate_invite") {
       const codeOrToken = (p.code || p.otp || p.inviteToken || "").trim();

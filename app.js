@@ -359,8 +359,9 @@ let toastTimeout;
 // ==========================================================================
 const ADMIN_MASTER_KEY = "lbr_master_gehard_8f93a1c72";
 
-// Botão de acesso ao Painel Admin no cabeçalho
+// Botão de acesso ao Painel Admin e Botão de Logout no cabeçalho
 const adminPanelBtn = document.getElementById("adminPanelBtn");
+const logoutBtn = document.getElementById("logoutBtn");
 
 // Gera ou recupera o identificador único permanente deste aparelho (UUID)
 function getOrCreateDeviceId() {
@@ -440,6 +441,7 @@ function checkLibraryAccess() {
   // 1. Checa se o laptop é o do Gehard (acesso livre e imediato)
   if (checkLaptopAuthority()) {
     if (adminPanelBtn) adminPanelBtn.classList.remove("hidden");
+    if (logoutBtn) logoutBtn.classList.add("hidden");
     return true;
   }
 
@@ -458,6 +460,7 @@ function checkLibraryAccess() {
     localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
     window.history.replaceState({}, document.title, window.location.pathname);
     if (adminPanelBtn) adminPanelBtn.classList.remove("hidden");
+    if (logoutBtn) logoutBtn.classList.add("hidden");
     return true;
   }
 
@@ -466,8 +469,10 @@ function checkLibraryAccess() {
   if (isAuthorized) {
     if (!isMobileDevice && localStorage.getItem("lbr_role") === "admin" && adminPanelBtn) {
       adminPanelBtn.classList.remove("hidden");
-    } else if (adminPanelBtn) {
-      adminPanelBtn.classList.add("hidden");
+      if (logoutBtn) logoutBtn.classList.add("hidden");
+    } else {
+      if (adminPanelBtn) adminPanelBtn.classList.add("hidden");
+      if (logoutBtn) logoutBtn.classList.remove("hidden");
     }
     return true;
   }
@@ -478,15 +483,65 @@ function checkLibraryAccess() {
   return false;
 }
 
+// Verifica em segundo plano se o acesso deste aparelho foi revogado pelo admin
+async function checkDeviceRevocation() {
+  if (typeof window === "undefined") return;
+  const isMaster = checkLaptopAuthority();
+  if (isMaster) return; // Computador do Gehard é imune
+
+  const deviceId = getOrCreateDeviceId();
+  if (!GOOGLE_DRIVE_API_URL || !deviceId) return;
+
+  try {
+    const res = await fetch(`${GOOGLE_DRIVE_API_URL}?action=validate_device&deviceId=${encodeURIComponent(deviceId)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && (data.status === "unauthorized" || data.authorized === false)) {
+        localStorage.removeItem(AUTH_STATUS_KEY);
+        localStorage.removeItem("lbr_role");
+        localStorage.removeItem("lbr_member_name");
+        alert("⚠️ Seu acesso ao Clube Let's Be Readers foi revogado pelo administrador.");
+        window.location.replace("entrar.html");
+      }
+    }
+  } catch (e) {
+    // Falhas de rede temporárias não bloqueiam offline
+  }
+}
+
+// Configura botão de desconectar / revogar este aparelho
+function setupLogoutButton() {
+  if (!logoutBtn) return;
+  logoutBtn.onclick = () => {
+    if (confirm("Deseja realmente sair e desconectar este aparelho do Clube Let's Be Readers?\n\nPara acessar a biblioteca novamente, será necessário um novo código OTP emitido pelo administrador.")) {
+      const deviceId = getOrCreateDeviceId();
+      try {
+        if (GOOGLE_DRIVE_API_URL && deviceId) {
+          fetch(`${GOOGLE_DRIVE_API_URL}?action=guest_logout&deviceId=${encodeURIComponent(deviceId)}`).catch(() => {});
+        }
+      } catch (e) {}
+
+      localStorage.removeItem(AUTH_STATUS_KEY);
+      localStorage.removeItem("lbr_role");
+      localStorage.removeItem("lbr_member_name");
+      window.location.replace("entrar.html");
+    }
+  };
+}
+
 // Inicialização da Aplicação
 document.addEventListener("DOMContentLoaded", async () => {
   setupEventListeners();
+  setupLogoutButton();
 
   // Executa validação de autoridade e segurança
   const canAccess = checkLibraryAccess();
   if (!canAccess) {
     return;
   }
+
+  // Checagem em background de revogação de aparelho (convidados)
+  checkDeviceRevocation();
 
   // Render inicial com os dados disponíveis
   buildCategoryPills();

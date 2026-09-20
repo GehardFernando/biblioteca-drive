@@ -17,6 +17,7 @@ const copyLatestLinkBtn = document.getElementById("copyLatestLinkBtn");
 const otpCountdown = document.getElementById("otpCountdown");
 const otpTimerBadge = document.getElementById("otpTimerBadge");
 const refreshMembersBtn = document.getElementById("refreshMembersBtn");
+const revokeAllBtn = document.getElementById("revokeAllBtn");
 const adminMembersList = document.getElementById("adminMembersList");
 const activeMembersCount = document.getElementById("activeMembersCount");
 const adminSyncDriveBtn = document.getElementById("adminSyncDriveBtn");
@@ -305,20 +306,52 @@ function renderMembersList(invites = []) {
   });
 }
 
-// Revogar um membro ou convite
+// Revogar um membro ou convite individual
 async function revokeOtpOrMember(targetId) {
-  if (!confirm("Deseja realmente revogar o acesso deste membro / cancelar este código OTP?")) return;
-
   let pool = getLocalOtpPool();
+  const itemToRevoke = pool.find(inv => inv.id === targetId || inv.code === targetId);
+  const targetName = itemToRevoke ? (itemToRevoke.note || "este convidado") : "este membro";
+  const targetDeviceId = itemToRevoke ? (itemToRevoke.deviceId || "") : "";
+
+  if (!confirm(`Deseja realmente revogar o acesso de "${targetName}"?\n\nO aparelho correspondente será desconectado e não conseguirá mais acessar o acervo.`)) return;
+
   pool = pool.filter(inv => inv.id !== targetId && inv.code !== targetId);
   saveLocalOtpPool(pool);
   renderMembersList(pool);
 
-  try {
-    await fetch(`${GOOGLE_DRIVE_API_URL}?action=admin_revoke_invite&adminKey=${encodeURIComponent(ADMIN_MASTER_KEY)}&id=${encodeURIComponent(targetId)}`);
-  } catch (err) {}
+  showToast("Revogando acesso na nuvem...");
 
-  showToast("Acesso / código revogado com sucesso!");
+  try {
+    const url = `${GOOGLE_DRIVE_API_URL}?action=admin_revoke_invite&adminKey=${encodeURIComponent(ADMIN_MASTER_KEY)}&id=${encodeURIComponent(targetId)}&code=${encodeURIComponent(targetId)}&deviceId=${encodeURIComponent(targetDeviceId)}`;
+    await fetch(url);
+    showToast(`✅ Acesso de "${targetName}" revogado com sucesso!`);
+  } catch (err) {
+    showToast("Acesso revogado localmente.");
+  }
+}
+
+// Revogar todos os membros e convites de uma só vez
+async function revokeAllMembers() {
+  const pool = getLocalOtpPool();
+  const count = pool.length;
+  if (!confirm(`⚠️ ATENÇÃO: Deseja realmente REVOGAR TODOS os acessos?\n\nTodos os convidados e celulares conectados serão desconectados e precisarão de um novo código OTP para entrar.`)) {
+    return;
+  }
+
+  // Limpa pool local e active OTP
+  saveLocalOtpPool([]);
+  localStorage.removeItem("lbr_active_otp");
+  renderMembersList([]);
+
+  showToast("Revogando todos os acessos na nuvem...");
+
+  try {
+    const url = `${GOOGLE_DRIVE_API_URL}?action=admin_revoke_all&adminKey=${encodeURIComponent(ADMIN_MASTER_KEY)}`;
+    await fetch(url);
+    showToast("✅ Todos os acessos de convidados foram revogados com sucesso!");
+  } catch (err) {
+    showToast("Acessos revogados localmente.");
+  }
 }
 
 // Gerar novo código OTP de 6 dígitos com validade de 5 minutos
@@ -428,6 +461,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (refreshMembersBtn) {
     refreshMembersBtn.onclick = () => fetchCloudInvites();
+  }
+
+  if (revokeAllBtn) {
+    revokeAllBtn.onclick = () => revokeAllMembers();
   }
 
   if (adminSyncDriveBtn) {
