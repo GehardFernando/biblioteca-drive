@@ -5,25 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0e17" />
   <title>Painel do Administrador | Let's Be Readers</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <script>
     // BLOQUEIO ESTRITO DE SEGURANÇA: Exclusivo para o Laptop do Gehard
     (function() {
       var ua = navigator.userAgent || "";
-      var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+      var isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+      var isTouch = (typeof navigator.maxTouchPoints !== "undefined" && navigator.maxTouchPoints > 0);
+      var isSmallScreen = (typeof window.screen !== "undefined" && (window.screen.width < 1024 || window.screen.height < 600));
+      var isCoarse = (typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches);
+      var isMobileDevice = isMobileUA || isSmallScreen || (isTouch && isCoarse);
+
       var isLinuxDesktop = (navigator.platform && navigator.platform.indexOf("Linux") !== -1) &&
-                           (!ua.includes("Android")) &&
-                           (!isMobile);
+                           (!isMobileDevice);
       var isLocal = window.location.hostname === "localhost" || 
                     window.location.hostname === "127.0.0.1" || 
                     window.location.protocol === "file:";
       var urlParams = new URLSearchParams(window.location.search);
       var hasMasterKey = urlParams.get("admin") === "lbr_master_gehard_8f93a1c72";
 
-      // Celulares são terminantemente PROIBIDOS de acessar este painel
-      if (isMobile || (!isLocal && !isLinuxDesktop && !hasMasterKey)) {
+      // Celulares e tablets são terminantemente PROIBIDOS de acessar este painel
+      if (isMobileDevice || (!isLocal && !isLinuxDesktop && !hasMasterKey)) {
         try {
           localStorage.removeItem("lbr_role");
           localStorage.removeItem("lbr_admin_key");
+          localStorage.removeItem("lbr_club_auth_v13_locked");
+          localStorage.removeItem("lbr_club_auth_v12");
+          localStorage.removeItem("lbr_auth_status");
         } catch(e) {}
         window.location.replace("entrar.html");
       }
@@ -33,7 +43,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20260919_v12" />
+  <link rel="stylesheet" href="style.css?v=20260919_v13" />
 </head>
 <body class="admin-page">
 
@@ -204,6 +214,6 @@
     <span id="toastMessage">Pronto!</span>
   </div>
 
-  <script src="admin.js?v=20260919_v12"></script>
+  <script src="admin.js?v=20260919_v13"></script>
 </body>
 </html>

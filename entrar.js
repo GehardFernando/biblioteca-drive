@@ -4,7 +4,7 @@
 const ADMIN_MASTER_KEY = "lbr_master_gehard_8f93a1c72";
 const GOOGLE_DRIVE_API_URL = "https://script.google.com/macros/s/AKfycbwGk2epbZ3thFo8ZJhHQDLUEZffTRobl657b6hGKMXNJUXUBtn9cSVUtgIDoHhzaW4rww/exec";
 const OTP_VALIDITY_MS = 5 * 60 * 1000; // 5 minutos de validade estrita
-const AUTH_STATUS_KEY = "lbr_club_auth_v12";
+const AUTH_STATUS_KEY = "lbr_club_auth_v13_locked";
 
 const inviteInput = document.getElementById("inviteInput");
 const submitBtn = document.getElementById("submitBtn");
@@ -54,13 +54,20 @@ function checkLaptopAuthority() {
   if (typeof window === "undefined") return false;
 
   const ua = navigator.userAgent || "";
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+  const isTouch = (typeof navigator.maxTouchPoints !== "undefined" && navigator.maxTouchPoints > 0);
+  const isSmallScreen = (typeof window.screen !== "undefined" && (window.screen.width < 1024 || window.screen.height < 600));
+  const isCoarse = (typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches);
+  const isMobileDevice = isMobileUA || isSmallScreen || (isTouch && isCoarse);
   
   // Celulares são terminantemente proibidos de receber autoridade máxima
-  if (isMobile) {
+  if (isMobileDevice) {
     try {
       localStorage.removeItem("lbr_role");
       localStorage.removeItem("lbr_admin_key");
+      localStorage.removeItem(AUTH_STATUS_KEY);
+      localStorage.removeItem("lbr_club_auth_v12");
+      localStorage.removeItem("lbr_auth_status");
     } catch(e) {}
     return false;
   }
@@ -72,18 +79,13 @@ function checkLaptopAuthority() {
 
   const isLinuxDesktop = typeof navigator !== "undefined" &&
                          (navigator.platform && navigator.platform.includes("Linux")) &&
-                         (!ua.includes("Android")) &&
-                         (!isMobile);
+                         (!isMobileDevice);
 
   if (isLocal || isLinuxDesktop) {
     localStorage.setItem(AUTH_STATUS_KEY, "authorized");
     localStorage.setItem("lbr_role", "admin");
     localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
     localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
-    return true;
-  }
-
-  if (localStorage.getItem("lbr_role") === "admin" && localStorage.getItem("lbr_admin_key") === ADMIN_MASTER_KEY) {
     return true;
   }
 
@@ -129,9 +131,13 @@ async function validateAndEnter(rawInput) {
                       trimmed.toLowerCase() === "gehard" ||
                       trimmed.includes(ADMIN_MASTER_KEY);
 
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent);
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent || "");
+  const isTouch = (typeof navigator.maxTouchPoints !== "undefined" && navigator.maxTouchPoints > 0);
+  const isSmallScreen = (typeof window.screen !== "undefined" && (window.screen.width < 1024 || window.screen.height < 600));
+  const isCoarse = (typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches);
+  const isMobileDevice = isMobileUA || isSmallScreen || (isTouch && isCoarse);
 
-  if (isMasterKey && !isMobile) {
+  if (isMasterKey && !isMobileDevice) {
     localStorage.setItem(AUTH_STATUS_KEY, "authorized");
     localStorage.setItem("lbr_role", "admin");
     localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
@@ -269,10 +275,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const otpParam = urlParams.get("otp");
   const inviteParam = urlParams.get("convite");
   const ua = navigator.userAgent || "";
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+  const isTouch = (typeof navigator.maxTouchPoints !== "undefined" && navigator.maxTouchPoints > 0);
+  const isSmallScreen = (typeof window.screen !== "undefined" && (window.screen.width < 1024 || window.screen.height < 600));
+  const isCoarse = (typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches);
+  const isMobileDevice = isMobileUA || isSmallScreen || (isTouch && isCoarse);
 
   // 1. Acesso Admin via URL (Apenas em computadores/laptops, NUNCA em celulares)
-  if (!isMobile && adminParam && (adminParam.trim() === ADMIN_MASTER_KEY || adminParam.trim().toLowerCase() === "gehard")) {
+  if (!isMobileDevice && adminParam && (adminParam.trim() === ADMIN_MASTER_KEY || adminParam.trim().toLowerCase() === "gehard")) {
     localStorage.setItem(AUTH_STATUS_KEY, "authorized");
     localStorage.setItem("lbr_role", "admin");
     localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);

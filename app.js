@@ -193,7 +193,7 @@ const PAGE_SIZE = 36;
 let visibleCount = PAGE_SIZE;
 
 // Chave de versão de cache local (invalida automaticamente caches de versões antigas garantindo 100% das capas atualizadas)
-const CACHE_KEY = "drive_books_cache_v11";
+const CACHE_KEY = "drive_books_cache_v13";
 
 // Expurgar proativamente caches legados corrompidos (mobile/desktop)
 if (typeof window !== "undefined") {
@@ -376,22 +376,27 @@ function getOrCreateDeviceId() {
   return id;
 }
 
-const AUTH_STATUS_KEY = "lbr_club_auth_v12";
+const AUTH_STATUS_KEY = "lbr_club_auth_v13_locked";
 
 // Reconhecer este computador/laptop como Autoridade Máxima permanente
 function checkLaptopAuthority() {
   if (typeof window === "undefined") return false;
 
   const ua = navigator.userAgent || "";
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+  const isTouch = (typeof navigator.maxTouchPoints !== "undefined" && navigator.maxTouchPoints > 0);
+  const isSmallScreen = (typeof window.screen !== "undefined" && (window.screen.width < 1024 || window.screen.height < 600));
+  const isCoarse = (typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches);
+
+  const isMobileDevice = isMobileUA || isSmallScreen || (isTouch && isCoarse);
 
   // Celulares e tablets NUNCA são considerados autoridade máxima
-  if (isMobile) {
+  if (isMobileDevice) {
     try {
-      if (localStorage.getItem("lbr_role") === "admin") {
-        localStorage.removeItem("lbr_role");
-      }
+      localStorage.removeItem("lbr_role");
       localStorage.removeItem("lbr_admin_key");
+      localStorage.removeItem("lbr_club_auth_v12");
+      localStorage.removeItem("lbr_auth_status");
     } catch(e) {}
     return false;
   }
@@ -401,21 +406,16 @@ function checkLaptopAuthority() {
                   window.location.protocol === "file:" ||
                   window.location.hostname === "";
 
-  // Detecção estrita do computador Linux desktop do Gehard (Ubuntu x86_64)
+  // Detecção estrita do computador Linux desktop do Gehard (Ubuntu / Mint x86_64)
   const isGehardLaptop = typeof navigator !== "undefined" &&
                          (navigator.platform && navigator.platform.includes("Linux")) &&
-                         (!ua.includes("Android")) &&
-                         (!isMobile);
+                         (!isMobileDevice);
 
   if (isLocal || isGehardLaptop) {
     localStorage.setItem(AUTH_STATUS_KEY, "authorized");
     localStorage.setItem("lbr_role", "admin");
     localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
     localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
-    return true;
-  }
-
-  if (localStorage.getItem("lbr_role") === "admin" && localStorage.getItem("lbr_admin_key") === ADMIN_MASTER_KEY) {
     return true;
   }
 
@@ -427,10 +427,15 @@ function checkLibraryAccess() {
   // Limpeza de autorizações legadas que possam ter ficado no cache do celular
   try {
     localStorage.removeItem("lbr_auth_status");
+    localStorage.removeItem("lbr_club_auth_v12");
   } catch(e) {}
 
   const ua = navigator.userAgent || "";
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+  const isTouch = (typeof navigator.maxTouchPoints !== "undefined" && navigator.maxTouchPoints > 0);
+  const isSmallScreen = (typeof window.screen !== "undefined" && (window.screen.width < 1024 || window.screen.height < 600));
+  const isCoarse = (typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches);
+  const isMobileDevice = isMobileUA || isSmallScreen || (isTouch && isCoarse);
 
   // 1. Checa se o laptop é o do Gehard (acesso livre e imediato)
   if (checkLaptopAuthority()) {
@@ -439,14 +444,14 @@ function checkLibraryAccess() {
   }
 
   // Celulares nunca exibem botão de admin
-  if (isMobile && adminPanelBtn) {
+  if (isMobileDevice && adminPanelBtn) {
     adminPanelBtn.classList.add("hidden");
   }
 
   // 2. Parâmetro admin na URL (apenas desktop)
   const urlParams = new URLSearchParams(window.location.search);
   const adminParam = urlParams.get("admin");
-  if (!isMobile && adminParam && (adminParam.trim() === ADMIN_MASTER_KEY || adminParam.trim().toLowerCase() === "gehard")) {
+  if (!isMobileDevice && adminParam && (adminParam.trim() === ADMIN_MASTER_KEY || adminParam.trim().toLowerCase() === "gehard")) {
     localStorage.setItem(AUTH_STATUS_KEY, "authorized");
     localStorage.setItem("lbr_role", "admin");
     localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
@@ -456,10 +461,10 @@ function checkLibraryAccess() {
     return true;
   }
 
-  // 3. Se usuário/convidado já foi autorizado neste aparelho com convite válido v12
+  // 3. Se visitante no celular ou outro aparelho já ativou OTP válido v13
   const isAuthorized = localStorage.getItem(AUTH_STATUS_KEY) === "authorized";
   if (isAuthorized) {
-    if (!isMobile && localStorage.getItem("lbr_role") === "admin" && adminPanelBtn) {
+    if (!isMobileDevice && localStorage.getItem("lbr_role") === "admin" && adminPanelBtn) {
       adminPanelBtn.classList.remove("hidden");
     } else if (adminPanelBtn) {
       adminPanelBtn.classList.add("hidden");

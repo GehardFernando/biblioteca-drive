@@ -7,11 +7,74 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>Let's Be Readers | Biblioteca Digital</title>
-  <!-- Google Fonts: Plus Jakarta Sans -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <script>
+    // BLOQUEIO SÍNCRONO NO HEAD: Impede que celulares ou visitantes não autorizados vejam a estante
+    (function() {
+      var AUTH_KEY = "lbr_club_auth_v13_locked";
+      var ADMIN_KEY = "lbr_master_gehard_8f93a1c72";
+
+      // 1. Limpeza de tokens legados residuais
+      try {
+        localStorage.removeItem("lbr_auth_status");
+        localStorage.removeItem("lbr_club_auth_v12");
+      } catch(e) {}
+
+      // 2. Detecção Física de Dispositivo Móvel (Mesmo com 'Versão para computador' ativada)
+      var ua = navigator.userAgent || "";
+      var isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+      var isTouch = (typeof navigator.maxTouchPoints !== "undefined" && navigator.maxTouchPoints > 0);
+      var isSmallScreen = (typeof window.screen !== "undefined" && (window.screen.width < 1024 || window.screen.height < 600));
+      var isCoarse = (typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches);
+
+      var isMobileDevice = isMobileUA || isSmallScreen || (isTouch && isCoarse);
+
+      // 3. Detecção do computador pessoal do Gehard (Desktop Linux Mint / Ubuntu x86_64)
+      var isLocal = window.location.hostname === "localhost" || 
+                    window.location.hostname === "127.0.0.1" || 
+                    window.location.protocol === "file:";
+
+      var isGehardComputer = (navigator.platform && navigator.platform.indexOf("Linux") !== -1) &&
+                             (!isMobileDevice);
+
+      // Se for o computador do Gehard: Libera acesso automático imediato
+      if (isLocal || isGehardComputer) {
+        try {
+          localStorage.setItem(AUTH_KEY, "authorized");
+          localStorage.setItem("lbr_role", "admin");
+          localStorage.setItem("lbr_admin_key", ADMIN_KEY);
+        } catch(e) {}
+        return;
+      }
+
+      // Se for celular/tablet:
+      // O celular NUNCA pode ter perfil admin
+      try {
+        if (localStorage.getItem("lbr_role") === "admin") {
+          localStorage.removeItem("lbr_role");
+          localStorage.removeItem("lbr_admin_key");
+          localStorage.removeItem(AUTH_KEY);
+        }
+      } catch(e) {}
+
+      // Checa se o visitante no celular já ativou um OTP válido v13
+      var isAuth = false;
+      try {
+        isAuth = localStorage.getItem(AUTH_KEY) === "authorized";
+      } catch(e) {}
+
+      // Se não tiver autorização válida v13, EXPULSA PARA entrar.html NA HORA
+      if (!isAuth) {
+        window.location.replace("entrar.html" + window.location.search);
+      }
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20260919_v12" />
+  <link rel="stylesheet" href="style.css?v=20260919_v13" />
 </head>
 <body>
 
@@ -354,7 +417,7 @@
     <span id="toastMessage">Download iniciado!</span>
   </div>
 
-  <script src="books-data.js?v=20260919_v12"></script>
-  <script src="app.js?v=20260919_v12"></script>
+  <script src="books-data.js?v=20260919_v13"></script>
+  <script src="app.js?v=20260919_v13"></script>
 </body>
 </html>

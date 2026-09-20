@@ -25,25 +25,31 @@ const toastMessage = document.getElementById("toastMessage");
 
 let otpTimerInterval = null;
 
-const AUTH_STATUS_KEY = "lbr_club_auth_v12";
+const AUTH_STATUS_KEY = "lbr_club_auth_v13_locked";
 
 // Bloqueio rigoroso: O painel de administração é exclusivo do laptop Linux do Gehard
 function enforceAdminAccess() {
   const ua = navigator.userAgent || "";
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+  const isTouch = (typeof navigator.maxTouchPoints !== "undefined" && navigator.maxTouchPoints > 0);
+  const isSmallScreen = (typeof window.screen !== "undefined" && (window.screen.width < 1024 || window.screen.height < 600));
+  const isCoarse = (typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches);
+  const isMobileDevice = isMobileUA || isSmallScreen || (isTouch && isCoarse);
+
   const isLinuxDesktop = (navigator.platform && navigator.platform.indexOf("Linux") !== -1) &&
-                         (!ua.includes("Android")) &&
-                         (!isMobile);
+                         (!isMobileDevice);
   const isLocal = window.location.hostname === "localhost" || 
                   window.location.hostname === "127.0.0.1" || 
                   window.location.protocol === "file:";
   const urlParams = new URLSearchParams(window.location.search);
   const hasMasterKey = urlParams.get("admin") === ADMIN_MASTER_KEY;
 
-  if (isMobile || (!isLocal && !isLinuxDesktop && !hasMasterKey)) {
+  if (isMobileDevice || (!isLocal && !isLinuxDesktop && !hasMasterKey)) {
     try {
       localStorage.removeItem("lbr_role");
       localStorage.removeItem("lbr_admin_key");
+      localStorage.removeItem(AUTH_STATUS_KEY);
+      localStorage.removeItem("lbr_club_auth_v12");
       localStorage.removeItem("lbr_auth_status");
     } catch (e) {}
     alert("Acesso Negado: O Painel de Administração é restrito exclusivamente ao laptop do administrador.");
@@ -53,6 +59,7 @@ function enforceAdminAccess() {
 
   try {
     localStorage.removeItem("lbr_auth_status");
+    localStorage.removeItem("lbr_club_auth_v12");
   } catch (e) {}
 
   localStorage.setItem(AUTH_STATUS_KEY, "authorized");
