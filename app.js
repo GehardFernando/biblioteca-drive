@@ -193,12 +193,12 @@ const PAGE_SIZE = 36;
 let visibleCount = PAGE_SIZE;
 
 // Chave de versão de cache local (invalida automaticamente caches de versões antigas garantindo 100% das capas atualizadas)
-const CACHE_KEY = "drive_books_cache_v6";
+const CACHE_KEY = "drive_books_cache_v7";
 
 // Expurgar proativamente caches legados corrompidos (mobile/desktop)
 if (typeof window !== "undefined") {
   try {
-    ["drive_books_cache", "drive_books_cache_v1", "drive_books_cache_v2", "drive_books_cache_v3", "drive_books_cache_v4", "drive_books_cache_v5"].forEach(k => {
+    ["drive_books_cache", "drive_books_cache_v1", "drive_books_cache_v2", "drive_books_cache_v3", "drive_books_cache_v4", "drive_books_cache_v5", "drive_books_cache_v6"].forEach(k => {
       localStorage.removeItem(k);
     });
   } catch (e) {}
@@ -358,8 +358,9 @@ let toastTimeout;
 // SEGURANÇA & CONTROLE DE ACESSO (3 SLOTS RESTRITOS)
 // ==========================================================================
 const ADMIN_MASTER_KEY = "lbr_master_gehard_8f93a1c72";
+const BASE_SITE_URL = "https://gehardfernando.github.io/biblioteca-drive/";
 
-// Elementos da Tela de Bloqueio e Administração
+// Elementos da Tela de Bloqueio (Clube Let's Be Readers)
 const lockScreen = document.getElementById("lockScreen");
 const mainContent = document.getElementById("mainContent");
 const adminPanelBtn = document.getElementById("adminPanelBtn");
@@ -368,22 +369,20 @@ const activateInviteBtn = document.getElementById("activateInviteBtn");
 const lockStatusMsg = document.getElementById("lockStatusMsg");
 const lockAdminTrigger = document.getElementById("lockAdminTrigger");
 
+// Elementos do Modal de Administração (Gerador de OTP e Membros)
 const adminModal = document.getElementById("adminModal");
 const closeAdminModal = document.getElementById("closeAdminModal");
-const slotCardGuest1 = document.getElementById("slotCardGuest1");
-const slotCardGuest2 = document.getElementById("slotCardGuest2");
-const slotBadge1 = document.getElementById("slotBadge1");
-const slotBadge2 = document.getElementById("slotBadge2");
-const slotDesc1 = document.getElementById("slotDesc1");
-const slotDesc2 = document.getElementById("slotDesc2");
-const slotLink1 = document.getElementById("slotLink1");
-const slotLink2 = document.getElementById("slotLink2");
-const copyLinkBtn1 = document.getElementById("copyLinkBtn1");
-const copyLinkBtn2 = document.getElementById("copyLinkBtn2");
-const resetSlotBtn1 = document.getElementById("resetSlotBtn1");
-const resetSlotBtn2 = document.getElementById("resetSlotBtn2");
+const adminOtpNote = document.getElementById("adminOtpNote");
+const adminGenerateOtpBtn = document.getElementById("adminGenerateOtpBtn");
+const adminLatestOtpBox = document.getElementById("adminLatestOtpBox");
+const adminLatestOtpCode = document.getElementById("adminLatestOtpCode");
+const adminLatestOtpNote = document.getElementById("adminLatestOtpNote");
+const copyLatestOtpBtn = document.getElementById("copyLatestOtpBtn");
+const copyLatestLinkBtn = document.getElementById("copyLatestLinkBtn");
+const refreshMembersBtn = document.getElementById("refreshMembersBtn");
+const adminMembersList = document.getElementById("adminMembersList");
 
-// Gera ou recupera o identificador único permanente deste aparelho
+// Gera ou recupera o identificador único permanente deste aparelho (UUID)
 function getOrCreateDeviceId() {
   let id = localStorage.getItem("lbr_device_id");
   if (!id) {
@@ -397,7 +396,7 @@ function getOrCreateDeviceId() {
   return id;
 }
 
-// Reconhecer este laptop como Autoridade Máxima
+// Reconhecer este laptop como Autoridade Máxima permanente
 function checkLaptopAuthority() {
   const isLocal = (typeof window !== "undefined") && (
     window.location.hostname === "localhost" ||
@@ -421,7 +420,7 @@ function checkLaptopAuthority() {
   return false;
 }
 
-// Desbloquear site e exibir interface principal
+// Desbloquear site e exibir acervo completo
 function unlockSite() {
   if (lockScreen) lockScreen.classList.add("hidden");
   if (mainContent) mainContent.classList.remove("hidden");
@@ -453,40 +452,113 @@ function showLockScreen(msg = "", type = "error") {
   }
 }
 
-// Processar ativação de convite via token
-async function processInviteToken(inviteToken) {
-  if (!inviteToken) return false;
-  showLockScreen("Validando convite de acesso...", "loading");
-
-  const deviceId = getOrCreateDeviceId();
+// Gestão de armazenamento local de convites (Fallback ágil e offline)
+function getLocalOtpPool() {
   try {
-    const apiUrl = `${GOOGLE_DRIVE_API_URL}?action=activate_invite&inviteToken=${encodeURIComponent(inviteToken)}&deviceId=${encodeURIComponent(deviceId)}`;
+    const raw = localStorage.getItem("lbr_otp_pool");
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return [];
+}
+
+function saveLocalOtpPool(pool) {
+  try {
+    localStorage.setItem("lbr_otp_pool", JSON.stringify(pool));
+  } catch (e) {}
+}
+
+// Extrair código ou token de uma entrada bruta (link, texto, números)
+function extractOtpOrToken(inputStr) {
+  if (!inputStr) return "";
+  let clean = inputStr.trim();
+  
+  // Se for URL completa ou query string
+  if (clean.includes("?")) {
+    try {
+      const url = new URL(clean, window.location.origin);
+      const otp = url.searchParams.get("otp");
+      const conv = url.searchParams.get("convite");
+      if (otp) return otp.trim();
+      if (conv) return conv.trim();
+    } catch (e) {}
+  }
+
+  // Regex para capturar otp= ou convite=
+  const matchParam = clean.match(/(?:otp|convite)=([a-zA-Z0-9_-]+)/i);
+  if (matchParam) return matchParam[1].trim();
+
+  // Remove espaços ou hífens para OTP numérico
+  return clean.replace(/[\s-]/g, "");
+}
+
+// Processar ativação de convite / OTP
+async function processInviteToken(rawInput) {
+  const code = extractOtpOrToken(rawInput);
+  if (!code) {
+    showLockScreen("Por favor, digite o código OTP ou cole o link de convite.", "error");
+    return false;
+  }
+
+  showLockScreen("Verificando seu código no Clube Let's Be Readers...", "loading");
+  const deviceId = getOrCreateDeviceId();
+
+  try {
+    const apiUrl = `${GOOGLE_DRIVE_API_URL}?action=activate_otp&code=${encodeURIComponent(code)}&deviceId=${encodeURIComponent(deviceId)}`;
     const res = await fetch(apiUrl);
     const data = await res.json();
 
     if (data && data.status === "success") {
       localStorage.setItem("lbr_auth_status", "authorized");
       localStorage.setItem("lbr_role", "guest");
-      localStorage.setItem("lbr_slot_name", data.name || "Convidado");
+      localStorage.setItem("lbr_member_name", data.note || "Membro do Clube");
       window.history.replaceState({}, document.title, window.location.pathname);
-      showToast("✨ Dispositivo autorizado com sucesso! Bem-vindo!");
+      showToast("✨ Bem-vindo ao Clube Let's Be Readers! Acesso liberado.");
       unlockSite();
       return true;
-    } else {
-      const errorMsg = (data && data.message) ? data.message : "Convite inválido ou já utilizado em outro dispositivo.";
-      showLockScreen(errorMsg, "error");
+    } else if (data && data.message) {
+      showLockScreen(data.message, "error");
       return false;
     }
   } catch (err) {
-    // Fallback de contingência caso a nuvem esteja temporariamente offline
-    console.warn("Aviso na validação de convite online:", err);
+    console.warn("Validação online via nuvem teve lentidão:", err);
+  }
+
+  // Fallback local: verifica se o código confere com a base local
+  const pool = getLocalOtpPool();
+  const matched = pool.find(item => item.code.toLowerCase() === code.toLowerCase() || item.id === code);
+
+  if (matched) {
+    if (matched.used && matched.deviceId !== deviceId) {
+      showLockScreen("Este código OTP já foi utilizado em outro aparelho.", "error");
+      return false;
+    }
+    matched.used = true;
+    matched.deviceId = deviceId;
+    matched.activatedAt = new Date().toISOString();
+    saveLocalOtpPool(pool);
+
     localStorage.setItem("lbr_auth_status", "authorized");
     localStorage.setItem("lbr_role", "guest");
+    localStorage.setItem("lbr_member_name", matched.note || "Membro do Clube");
     window.history.replaceState({}, document.title, window.location.pathname);
-    showToast("✨ Bem-vindo à biblioteca pessoal!");
+    showToast("✨ Bem-vindo ao Clube Let's Be Readers!");
     unlockSite();
     return true;
   }
+
+  // Se o código tiver formato de OTP válido (ex: 6 dígitos) e a nuvem não respondeu
+  if (/^\d{6}$/.test(code)) {
+    localStorage.setItem("lbr_auth_status", "authorized");
+    localStorage.setItem("lbr_role", "guest");
+    localStorage.setItem("lbr_member_name", "Membro do Clube");
+    window.history.replaceState({}, document.title, window.location.pathname);
+    showToast("✨ Bem-vindo ao Clube Let's Be Readers!");
+    unlockSite();
+    return true;
+  }
+
+  showLockScreen("Código OTP inválido ou expirado. Verifique e tente novamente.", "error");
+  return false;
 }
 
 // Fluxo de verificação de autenticação na carga da página
@@ -499,9 +571,10 @@ async function handleAuthFlow() {
 
   const urlParams = new URLSearchParams(window.location.search);
   const adminParam = urlParams.get("admin");
+  const otpParam = urlParams.get("otp");
   const inviteParam = urlParams.get("convite");
 
-  // 1. Acesso Mestre via URL
+  // 1. Acesso Mestre do Administrador via URL
   if (adminParam && adminParam.trim() === ADMIN_MASTER_KEY) {
     localStorage.setItem("lbr_auth_status", "authorized");
     localStorage.setItem("lbr_role", "admin");
@@ -513,159 +586,260 @@ async function handleAuthFlow() {
     return true;
   }
 
-  // 2. Acesso via Link de Convite
-  if (inviteParam) {
-    return await processInviteToken(inviteParam.trim());
+  // 2. Acesso via Link com OTP ou Convite Embutido
+  const codeFromUrl = otpParam || inviteParam;
+  if (codeFromUrl) {
+    return await processInviteToken(codeFromUrl.trim());
   }
 
-  // 3. Credencial previamente gravada no aparelho
+  // 3. Credencial previamente salva no aparelho (acesso recorrente)
   const isSavedAuth = localStorage.getItem("lbr_auth_status") === "authorized";
   if (isSavedAuth) {
     unlockSite();
     return true;
   }
 
-  // 4. Dispositivo não autorizado -> Bloquear
+  // 4. Visitante Não Autorizado -> Exibe Tela de Bloqueio do Clube
   showLockScreen();
   return false;
 }
 
-// Atualizar interface de um slot no painel do administrador
-function updateSlotUi(slotKey, slotData, inputEl, badgeEl, descEl) {
-  if (!slotData) return;
-  const baseUrl = "https://gehardfernando.github.io/biblioteca-drive/";
-  const inviteUrl = `${baseUrl}?convite=${slotData.inviteToken}`;
-
-  if (inputEl) inputEl.value = inviteUrl;
-
-  if (slotData.status === "active") {
-    if (badgeEl) {
-      badgeEl.textContent = "Ativo • Vinculado";
-      badgeEl.className = "slot-badge badge-active";
-    }
-    const dateFormatted = slotData.activatedAt ? new Date(slotData.activatedAt).toLocaleDateString("pt-BR") : "Recentemente";
-    if (descEl) descEl.textContent = `Aparelho autorizado em ${dateFormatted}. Link já utilizado.`;
-  } else {
-    if (badgeEl) {
-      badgeEl.textContent = "Pendente";
-      badgeEl.className = "slot-badge badge-pending";
-    }
-    if (descEl) descEl.textContent = "Aguardando o convidado abrir o link no celular.";
-  }
-}
-
-// Copiar link do slot com feedback
-function copySlotLink(inputEl, btnEl) {
-  if (!inputEl || !inputEl.value) return;
-  const linkText = inputEl.value;
-
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(linkText).then(() => {
-      onCopySuccess(btnEl);
-    }).catch(() => {
-      fallbackCopy(inputEl, btnEl);
-    });
-  } else {
-    fallbackCopy(inputEl, btnEl);
-  }
-}
-
-function fallbackCopy(inputEl, btnEl) {
-  inputEl.select();
-  inputEl.setSelectionRange(0, 99999);
-  document.execCommand("copy");
-  onCopySuccess(btnEl);
-}
-
-function onCopySuccess(btnEl) {
-  const span = btnEl.querySelector("span");
-  const originalText = span ? span.textContent : "Copiar Link";
-  if (span) span.textContent = "Copiado! ✓";
-  btnEl.classList.add("copied");
-  showToast("Link copiado para a área de transferência!");
-
-  setTimeout(() => {
-    if (span) span.textContent = originalText;
-    btnEl.classList.remove("copied");
-  }, 2500);
-}
-
-// Gerar novo link de convite (Resetar slot)
-async function resetSlot(slotKey, inputEl, badgeEl, descEl, btnEl) {
-  if (!confirm(`Deseja revogar o acesso atual e gerar um novo link de convite para este slot?`)) return;
-
-  if (badgeEl) badgeEl.textContent = "Gerando...";
+// Copiar texto para o clipboard com feedback
+async function copyTextWithFeedback(text, btnEl, successLabel = "Copiado! ✓") {
+  if (!text) return;
   try {
-    const res = await fetch(`${GOOGLE_DRIVE_API_URL}?action=admin_generate_invite&slotKey=${slotKey}&adminKey=${encodeURIComponent(ADMIN_MASTER_KEY)}`);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const tempInput = document.createElement("input");
+      tempInput.value = text;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand("copy");
+      document.body.removeChild(tempInput);
+    }
+
+    if (btnEl) {
+      const originalText = btnEl.innerHTML;
+      btnEl.classList.add("copied");
+      btnEl.innerHTML = `<span>${successLabel}</span>`;
+      setTimeout(() => {
+        btnEl.classList.remove("copied");
+        btnEl.innerHTML = originalText;
+      }, 2200);
+    }
+    showToast("Copiado para a área de transferência!");
+  } catch (err) {
+    showToast("Código pronto: " + text);
+  }
+}
+
+// Renderizar lista dinâmica de membros e convites no painel admin
+function renderMembersList(invites = []) {
+  if (!adminMembersList) return;
+  adminMembersList.innerHTML = "";
+
+  if (!invites || invites.length === 0) {
+    adminMembersList.innerHTML = `
+      <div class="members-empty-state">
+        <p>Nenhum convite emitido ainda. Clique em <strong>"Gerar OTP"</strong> acima para criar o primeiro!</p>
+      </div>
+    `;
+    return;
+  }
+
+  invites.forEach(item => {
+    const card = document.createElement("div");
+    card.className = "member-item-card";
+
+    const isUsed = item.used;
+    const badgeHtml = isUsed 
+      ? `<span class="slot-badge badge-active">Ativo • Vinculado</span>`
+      : `<span class="slot-badge badge-pending">Pendente (Aguardando)</span>`;
+
+    const formattedCode = item.code.length === 6 
+      ? `${item.code.substring(0, 3)} ${item.code.substring(3)}`
+      : item.code;
+
+    const fullLink = `${BASE_SITE_URL}?otp=${item.code}`;
+    const dateFormatted = item.activatedAt 
+      ? new Date(item.activatedAt).toLocaleDateString("pt-BR")
+      : (item.createdAt ? new Date(item.createdAt).toLocaleDateString("pt-BR") : "Hoje");
+
+    card.innerHTML = `
+      <div class="member-item-info">
+        <div class="member-item-title-row">
+          <span class="member-item-name">${item.note || "Convidado"}</span>
+          ${badgeHtml}
+        </div>
+        <div class="member-item-meta">
+          <span>OTP: <strong class="member-item-code">${formattedCode}</strong></span>
+          <span>• ${isUsed ? "Ativado em: " : "Criado em: "}${dateFormatted}</span>
+        </div>
+      </div>
+      <div class="member-item-actions">
+        <button class="btn-member-action copy-otp-item-btn" title="Copiar código OTP">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          <span>OTP</span>
+        </button>
+        <button class="btn-member-action copy-link-item-btn" title="Copiar Link Completo">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+          </svg>
+          <span>Link</span>
+        </button>
+        <button class="btn-member-action btn-member-revoke revoke-item-btn" title="Revogar acesso">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    `;
+
+    // Eventos dos botões do card
+    const copyOtpBtn = card.querySelector(".copy-otp-item-btn");
+    const copyLinkBtn = card.querySelector(".copy-link-item-btn");
+    const revokeBtn = card.querySelector(".revoke-item-btn");
+
+    if (copyOtpBtn) {
+      copyOtpBtn.onclick = () => copyTextWithFeedback(item.code, copyOtpBtn, "Copiado!");
+    }
+    if (copyLinkBtn) {
+      copyLinkBtn.onclick = () => copyTextWithFeedback(fullLink, copyLinkBtn, "Copiado!");
+    }
+    if (revokeBtn) {
+      revokeBtn.onclick = () => revokeOtpOrMember(item.id || item.code);
+    }
+
+    adminMembersList.appendChild(card);
+  });
+}
+
+// Revogar um membro ou código OTP
+async function revokeOtpOrMember(targetId) {
+  if (!confirm("Deseja revogar o acesso ou cancelar este código de convite?")) return;
+
+  // Atualiza local pool
+  let pool = getLocalOtpPool();
+  pool = pool.filter(inv => inv.id !== targetId && inv.code !== targetId);
+  saveLocalOtpPool(pool);
+  renderMembersList(pool);
+
+  try {
+    await fetch(`${GOOGLE_DRIVE_API_URL}?action=admin_revoke_invite&adminKey=${encodeURIComponent(ADMIN_MASTER_KEY)}&id=${encodeURIComponent(targetId)}`);
+  } catch (err) {}
+
+  showToast("Acesso/código revogado com sucesso!");
+}
+
+// Gerar novo código OTP de 6 dígitos
+async function generateNewOtp() {
+  const note = (adminOtpNote && adminOtpNote.value.trim()) || "Convidado";
+  let otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const newInvite = {
+    id: "otp_" + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+    code: otpCode,
+    note: note,
+    createdAt: new Date().toISOString(),
+    used: false,
+    deviceId: null,
+    activatedAt: null
+  };
+
+  // Tenta criar na nuvem (Apps Script)
+  try {
+    const res = await fetch(`${GOOGLE_DRIVE_API_URL}?action=admin_create_otp&adminKey=${encodeURIComponent(ADMIN_MASTER_KEY)}&note=${encodeURIComponent(note)}`);
     if (res.ok) {
       const data = await res.json();
-      if (data && data.status === "success" && data.slot) {
-        updateSlotUi(slotKey, data.slot, inputEl, badgeEl, descEl);
-        copySlotLink(inputEl, btnEl);
-        showToast("Novo link de convite gerado e copiado!");
-        return;
+      if (data && data.status === "success" && data.otpCode) {
+        otpCode = data.otpCode;
+        newInvite.code = data.otpCode;
+        if (data.invite && data.invite.id) newInvite.id = data.invite.id;
       }
     }
   } catch (err) {
-    console.warn("Aviso ao resetar slot online:", err);
+    console.warn("Geração de OTP sincronizou localmente:", err);
   }
 
-  // Fallback offline caso esteja sem conexão direta
-  const localToken = "conv_" + Math.random().toString(36).substring(2, 14);
-  const fallbackUrl = `https://gehardfernando.github.io/biblioteca-drive/?convite=${localToken}`;
-  if (inputEl) inputEl.value = fallbackUrl;
-  if (badgeEl) {
-    badgeEl.textContent = "Pendente";
-    badgeEl.className = "slot-badge badge-pending";
+  // Salva no pool local
+  const pool = getLocalOtpPool();
+  pool.unshift(newInvite);
+  saveLocalOtpPool(pool);
+
+  // Exibe o card de destaque do código recém-criado
+  if (adminLatestOtpBox) {
+    adminLatestOtpBox.classList.remove("hidden");
+    if (adminLatestOtpNote) adminLatestOtpNote.textContent = `Para: ${note}`;
+    if (adminLatestOtpCode) {
+      adminLatestOtpCode.textContent = `${otpCode.substring(0, 3)} ${otpCode.substring(3)}`;
+    }
+
+    const fullUrl = `${BASE_SITE_URL}?otp=${otpCode}`;
+    if (copyLatestOtpBtn) {
+      copyLatestOtpBtn.onclick = () => copyTextWithFeedback(otpCode, copyLatestOtpBtn, "OTP Copiado! ✓");
+    }
+    if (copyLatestLinkBtn) {
+      copyLatestLinkBtn.onclick = () => copyTextWithFeedback(fullUrl, copyLatestLinkBtn, "Link Copiado! ✓");
+    }
   }
-  if (descEl) descEl.textContent = "Novo link gerado. Aguardando ativação.";
-  copySlotLink(inputEl, btnEl);
-  showToast("Novo link gerado e copiado!");
+
+  if (adminOtpNote) adminOtpNote.value = "";
+  renderMembersList(pool);
+  showToast("⚡ Novo código OTP gerado com sucesso!");
 }
 
-// Abrir painel do administrador e carregar status dos slots
+// Abrir painel do administrador e carregar convites
 async function openAdminPanel() {
   if (!adminModal) return;
   adminModal.classList.remove("hidden");
 
-  // Links padrão de fallback inicial
-  const base = "https://gehardfernando.github.io/biblioteca-drive/";
-  if (slotLink1 && !slotLink1.value) slotLink1.value = `${base}?convite=conv_g1_vip`;
-  if (slotLink2 && !slotLink2.value) slotLink2.value = `${base}?convite=conv_g2_vip`;
+  // Renderiza imediatamente com os dados locais
+  const localPool = getLocalOtpPool();
+  renderMembersList(localPool);
 
+  // Busca lista atualizada da nuvem
   try {
-    const res = await fetch(`${GOOGLE_DRIVE_API_URL}?action=admin_get_slots&adminKey=${encodeURIComponent(ADMIN_MASTER_KEY)}`);
+    const res = await fetch(`${GOOGLE_DRIVE_API_URL}?action=admin_list_invites&adminKey=${encodeURIComponent(ADMIN_MASTER_KEY)}`);
     if (res.ok) {
       const data = await res.json();
-      if (data && data.status === "success" && data.slots) {
-        updateSlotUi("guest_1", data.slots.guest_1, slotLink1, slotBadge1, slotDesc1);
-        updateSlotUi("guest_2", data.slots.guest_2, slotLink2, slotBadge2, slotDesc2);
+      if (data && data.status === "success" && data.invites) {
+        // Mesclar dados da nuvem com dados locais
+        saveLocalOtpPool(data.invites);
+        renderMembersList(data.invites);
       }
     }
   } catch (e) {}
 }
 
-// Configurar ouvintes do sistema de segurança
+// Configurar ouvintes de eventos de segurança e painel
 function setupSecurityListeners() {
-  // Ativação manual de convite na tela de bloqueio
+  // Ativação de convite ou código OTP na tela de bloqueio
   if (activateInviteBtn && manualInviteInput) {
     activateInviteBtn.onclick = async () => {
-      let code = manualInviteInput.value.trim();
-      if (!code) return;
-      if (code.includes("convite=")) {
-        const m = code.match(/convite=([^&]+)/);
-        if (m) code = m[1];
-      }
+      const raw = manualInviteInput.value.trim();
+      if (!raw) return;
       activateInviteBtn.disabled = true;
       const originalText = activateInviteBtn.innerHTML;
-      activateInviteBtn.innerHTML = "<span>Ativando...</span>";
-      await processInviteToken(code);
+      activateInviteBtn.innerHTML = "<span>Entrando...</span>";
+      await processInviteToken(raw);
       activateInviteBtn.disabled = false;
       activateInviteBtn.innerHTML = originalText;
     };
+
+    manualInviteInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        activateInviteBtn.click();
+      }
+    });
   }
 
-  // Trigger para Chave Mestre de Administrador na tela de bloqueio
+  // Gatilho para Chave Mestre de Administrador na tela de bloqueio
   if (lockAdminTrigger) {
     lockAdminTrigger.onclick = () => {
       const key = prompt("Digite a Chave Mestre de Administrador:");
@@ -682,13 +856,12 @@ function setupSecurityListeners() {
     };
   }
 
-  // Botão na Navbar para abrir painel do Administrador
+  // Botão na Navbar para abrir o painel do Administrador
   if (adminPanelBtn) {
-    adminPanelBtn.onclick = () => {
-      openAdminPanel();
-    };
+    adminPanelBtn.onclick = () => openAdminPanel();
   }
 
+  // Fechar Modal de Administração
   if (closeAdminModal) {
     closeAdminModal.onclick = () => {
       if (adminModal) adminModal.classList.add("hidden");
@@ -701,20 +874,23 @@ function setupSecurityListeners() {
     };
   }
 
-  // Copiar links dos slots
-  if (copyLinkBtn1 && slotLink1) {
-    copyLinkBtn1.onclick = () => copySlotLink(slotLink1, copyLinkBtn1);
-  }
-  if (copyLinkBtn2 && slotLink2) {
-    copyLinkBtn2.onclick = () => copySlotLink(slotLink2, copyLinkBtn2);
+  // Gerar Novo Código OTP
+  if (adminGenerateOtpBtn) {
+    adminGenerateOtpBtn.onclick = () => generateNewOtp();
   }
 
-  // Resetar slots
-  if (resetSlotBtn1) {
-    resetSlotBtn1.onclick = () => resetSlot("guest_1", slotLink1, slotBadge1, slotDesc1, copyLinkBtn1);
+  if (adminOtpNote) {
+    adminOtpNote.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        generateNewOtp();
+      }
+    });
   }
-  if (resetSlotBtn2) {
-    resetSlotBtn2.onclick = () => resetSlot("guest_2", slotLink2, slotBadge2, slotDesc2, copyLinkBtn2);
+
+  // Botão de Atualizar Membros
+  if (refreshMembersBtn) {
+    refreshMembersBtn.onclick = () => openAdminPanel();
   }
 }
 

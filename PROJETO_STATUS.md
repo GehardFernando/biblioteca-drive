@@ -55,27 +55,28 @@
 - **Invalidação Proativa de Cache (v5):**
   - Cache local atualizado para `drive_books_cache_v5` com limpeza automática de versões legadas (`v1` a `v4`).
 
-### ✅ Fase 7: Segurança & Controle de Acesso Restrito a 3 Dispositivos
-- **Acesso Restrito a 3 Slots Físicos:**
-  - **Slot 1 (Autoridade Máxima / Admin):** Laptop do Gehard com controle total, sem risco de bloqueio.
-  - **Slot 2 (Convidado 1):** Aparelho autorizado via convite descartável de uso único (*One-Time Link*).
-  - **Slot 3 (Convidado 2):** Aparelho autorizado via convite descartável de uso único (*One-Time Link*).
-- **Autoridade Máxima & Painel de Controle no Laptop:**
-  - O laptop do Gehard é reconhecido automaticamente em desenvolvimento local (`localhost`, `127.0.0.1`, `file://`) e em produção via chave mestre persistente.
-  - Botão exclusivo **🛡️ Admin** na barra de navegação (apenas visível para o Admin).
-  - **Painel Modal de Gestão de Convites:**
-    - Exibe o status em tempo real dos 3 slots (Ativo/Aguardando ativação).
-    - Botão **📋 Copiar Link** para copiar o link completo do convite direto para a área de transferência e colar no WhatsApp.
-    - Botão **🔄 Resetar Slot** para revogar um aparelho ou gerar um novo link de convite instantaneamente.
-- **Vínculo Físico de Aparelho (*Device Fingerprint / Token*):**
-  - O link de convite é de uso estritamente único. Ao ser aberto no celular do convidado, ele registra o ID exclusivo do navegador no `PropertiesService` do Google Apps Script e invalida o link.
-  - A URL do navegador é limpa automaticamente via `window.history.replaceState`, impedindo que o link seja copiado ou repassado para terceiros.
-- **Tela de Bloqueio Elegante (*Obsidian Dark Lock Screen*):**
-  - Visitantes não autorizados se deparam com a tela de proteção escura com efeito glassmorphism e campo para inserção manual de código de convite.
-  - Gatilho discreto de login de administrador com a Chave Mestre de Segurança.
-- **Invalidação de Cache Proativa (v6):**
-  - Cache local atualizado para `drive_books_cache_v6` com limpeza de versões legadas (`v1` a `v5`).
-  - Tags de scripts e estilos atualizadas para `?v=20260919_v6`.
+### ✅ Fase 7: Segurança & Controle de Acesso por Convites Dinâmicos (OTP) — Clube Let's Be Readers
+- **Fim do Limite Rígido de Slots:**
+  - Sistema 100% dinâmico e escalável: o administrador pode emitir quantos convites / códigos OTP desejar para novos membros.
+  - Vínculo automático de aparelho: ao digitar o código ou abrir o link, o identificador exclusivo (UUID) do navegador do convidado é registrado e o OTP é queimado (uso único).
+- **Tela de Bloqueio Exclusiva do Clube (*Obsidian Dark Lock Screen*):**
+  - Identificação: *"🔒 Clube Exclusivo — Clube Let's Be Readers"*.
+  - Mensagem frontal: *"Só quem faz parte do clube Let's Be Readers pode entrar."*
+  - Campo multifuncional: aceita o código OTP de 6 dígitos (ex: `849201`) ou o link de convite completo.
+  - Se o usuário abrir um link direto (`?otp=849201` ou `?convite=...`), o sistema preenche e valida instantaneamente, limpando a URL para privacidade.
+- **Painel de Controle no Laptop (Autoridade Máxima):**
+  - Laptop do Gehard reconhecido permanentemente como Administrador Master.
+  - Botão exclusivo **🛡️ Admin** na barra de navegação.
+  - **Gerador Rápido de OTPs:**
+    - Campo opcional para nome/nota do convidado (ex: "Lucas", "Mariana").
+    - Geração instantânea de código numérico de 6 dígitos com 1 clique.
+    - Botão **📋 Copiar OTP** e botão **🔗 Copiar Link Completo** para colar no WhatsApp.
+  - **Lista Dinâmica de Membros & Convites:**
+    - Visualização de membros ativos e convites pendentes.
+    - Ações rápidas para copiar códigos ou revogar acessos a qualquer momento.
+- **Invalidação de Cache Proativa (v7):**
+  - Cache local atualizado para `drive_books_cache_v7` com limpeza de versões legadas (`v1` a `v6`).
+  - Tags de scripts e estilos atualizadas para `?v=20260919_v7`.
 
 ---
 
@@ -83,9 +84,9 @@
 
 | Arquivo | Descrição |
 | :--- | :--- |
-| [`index.html`](./index.html) | Estrutura semântica: header com busca instantânea, botão de sincronização, filtros, grid de livros e modal de detalhes. |
-| [`style.css`](./style.css) | Sistema de design completo e responsivo (desktop, tablet, mobile) sem dependências externas. |
-| [`app.js`](./app.js) | Lógica da aplicação: integração com Google Apps Script, cache v6, busca instantânea, paginação fluida e downloads. |
+| [`index.html`](./index.html) | Estrutura semântica: header, tela de bloqueio do clube, painel modal gerador de OTPs e grid de livros. |
+| [`style.css`](./style.css) | Sistema de design dark com cards glassmorphism, destaque para código OTP e responsividade total. |
+| [`app.js`](./app.js) | Lógica da aplicação: validação de OTP/UUID, gerador de convites, cache v7, busca instantânea e downloads. |
 | [`google-drive-sync.gs`](./google-drive-sync.gs) | Script do Google Apps Script para leitura contínua e em tempo real da pasta do Google Drive. |
 | [`scan_books.py`](./scan_books.py) | Indexador Python com extração profunda e resiliente de capas. |
 | [`books.json`](./books.json) & [`books-data.js`](./books-data.js) | Base de dados estruturada com 661 livros e 100% de capas cobertas. |

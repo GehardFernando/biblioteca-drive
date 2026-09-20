@@ -94,46 +94,35 @@ function formatBytes(bytes) {
 }
 
 // ==========================================================================
-// SEGURANÇA & CONTROLE DE ACESSO (3 SLOTS RESTRITOS)
+// SEGURANÇA & CONTROLE DE ACESSO (CLUBE LET'S BE READERS - OTP DINÂMICO)
 // ==========================================================================
 const ADMIN_MASTER_KEY = "lbr_master_gehard_8f93a1c72";
 const BASE_SITE_URL = "https://gehardfernando.github.io/biblioteca-drive/";
 
 function getSecurityState() {
   const props = PropertiesService.getScriptProperties();
-  const stateJson = props.getProperty("LBR_SECURITY_STATE");
+  const stateJson = props.getProperty("LBR_SECURITY_STATE_V2");
   if (!stateJson) {
     const initialState = {
-      slots: {
-        "guest_1": {
-          name: "Convidado 1",
-          status: "pending",
-          inviteToken: "conv_" + Utilities.getUuid().replace(/-/g, "").substring(0, 16),
-          deviceId: null,
-          activatedAt: null
-        },
-        "guest_2": {
-          name: "Convidado 2",
-          status: "pending",
-          inviteToken: "conv_" + Utilities.getUuid().replace(/-/g, "").substring(0, 16),
-          deviceId: null,
-          activatedAt: null
-        }
-      }
+      invites: [], // Lista de { id, code, note, createdAt, used, deviceId, activatedAt }
+      devices: {}  // Mapa de { [deviceId]: { role, code, note, activatedAt } }
     };
-    props.setProperty("LBR_SECURITY_STATE", JSON.stringify(initialState));
+    props.setProperty("LBR_SECURITY_STATE_V2", JSON.stringify(initialState));
     return initialState;
   }
   try {
-    return JSON.parse(stateJson);
+    const parsed = JSON.parse(stateJson);
+    if (!parsed.invites) parsed.invites = [];
+    if (!parsed.devices) parsed.devices = {};
+    return parsed;
   } catch (err) {
-    return { slots: {} };
+    return { invites: [], devices: {} };
   }
 }
 
 function saveSecurityState(state) {
   const props = PropertiesService.getScriptProperties();
-  props.setProperty("LBR_SECURITY_STATE", JSON.stringify(state));
+  props.setProperty("LBR_SECURITY_STATE_V2", JSON.stringify(state));
 }
 
 function isDeviceAuthorized(deviceId, adminKey) {
@@ -142,11 +131,9 @@ function isDeviceAuthorized(deviceId, adminKey) {
   if (deviceId === "admin_laptop_gehard") return { authorized: true, role: "admin" };
 
   const state = getSecurityState();
-  for (const key in state.slots) {
-    const slot = state.slots[key];
-    if (slot.status === "active" && slot.deviceId === deviceId) {
-      return { authorized: true, role: "guest", slotKey: key, name: slot.name };
-    }
+  if (state.devices && state.devices[deviceId]) {
+    const dev = state.devices[deviceId];
+    return { authorized: true, role: dev.role || "guest", note: dev.note };
   }
   return { authorized: false };
 }
@@ -157,97 +144,122 @@ function doGet(e) {
     const action = p.action || "list";
 
     // 1. ENDPOINTS DE ADMINISTRAÇÃO (Exigem ADMIN_MASTER_KEY)
-    if (action === "admin_get_slots") {
+    if (action === "admin_list_invites" || action === "admin_get_slots") {
       if (p.adminKey !== ADMIN_MASTER_KEY) {
         return jsonOutput({ status: "error", message: "Chave mestre inválida." });
       }
       const state = getSecurityState();
       return jsonOutput({
         status: "success",
-        slots: state.slots,
+        invites: state.invites,
+        devices: state.devices,
         baseUrl: BASE_SITE_URL
       });
     }
 
-    if (action === "admin_generate_invite") {
+    if (action === "admin_create_otp") {
       if (p.adminKey !== ADMIN_MASTER_KEY) {
         return jsonOutput({ status: "error", message: "Chave mestre inválida." });
       }
-      const slotKey = p.slotKey; // 'guest_1' ou 'guest_2'
       const state = getSecurityState();
-      if (!state.slots[slotKey]) {
-        return jsonOutput({ status: "error", message: "Slot não encontrado." });
-      }
-      const newToken = "conv_" + Utilities.getUuid().replace(/-/g, "").substring(0, 16);
-      state.slots[slotKey].inviteToken = newToken;
-      state.slots[slotKey].status = "pending";
-      state.slots[slotKey].deviceId = null;
-      state.slots[slotKey].activatedAt = null;
+      // Gerar OTP de 6 dígitos único
+      let otpCode = "";
+      do {
+        otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      } while (state.invites.some(inv => inv.code === otpCode && !inv.used));
+
+      const newInvite = {
+        id: "otp_" + Utilities.getUuid().replace(/-/g, "").substring(0, 12),
+        code: otpCode,
+        note: (p.note || "Convidado").trim(),
+        createdAt: new Date().toISOString(),
+        used: false,
+        deviceId: null,
+        activatedAt: null
+      };
+
+      state.invites.unshift(newInvite);
       saveSecurityState(state);
 
       return jsonOutput({
         status: "success",
-        slotKey: slotKey,
-        slot: state.slots[slotKey],
-        inviteUrl: BASE_SITE_URL + "?convite=" + newToken
+        invite: newInvite,
+        otpCode: otpCode,
+        inviteUrl: BASE_SITE_URL + "?otp=" + otpCode
       });
     }
 
-    if (action === "admin_revoke_slot") {
+    if (action === "admin_revoke_invite" || action === "admin_revoke_slot") {
       if (p.adminKey !== ADMIN_MASTER_KEY) {
         return jsonOutput({ status: "error", message: "Chave mestre inválida." });
       }
-      const slotKey = p.slotKey;
+      const targetId = p.id || p.code || p.slotKey;
       const state = getSecurityState();
-      if (state.slots[slotKey]) {
-        state.slots[slotKey].status = "revoked";
-        state.slots[slotKey].deviceId = null;
-        saveSecurityState(state);
+
+      let revoked = false;
+      state.invites = state.invites.filter(inv => {
+        if (inv.id === targetId || inv.code === targetId) {
+          if (inv.deviceId && state.devices[inv.deviceId]) {
+            delete state.devices[inv.deviceId];
+          }
+          revoked = true;
+          return false;
+        }
+        return true;
+      });
+
+      if (p.deviceId && state.devices[p.deviceId]) {
+        delete state.devices[p.deviceId];
+        revoked = true;
       }
-      return jsonOutput({ status: "success", message: "Slot revogado com sucesso." });
+
+      saveSecurityState(state);
+      return jsonOutput({ status: "success", revoked: revoked, message: "Acesso/convite revogado." });
     }
 
-    // 2. ATIVAÇÃO DE CONVITE NO PRIMEIRO ACESSO DO CONVIDADO
-    if (action === "activate_invite") {
-      const inviteToken = p.inviteToken;
+    // 2. ATIVAÇÃO DE CONVITE / OTP
+    if (action === "activate_otp" || action === "activate_invite") {
+      const codeOrToken = (p.code || p.otp || p.inviteToken || "").trim();
       const deviceId = p.deviceId;
 
-      if (!inviteToken || !deviceId) {
-        return jsonOutput({ status: "error", message: "Token de convite ou identificador ausente." });
+      if (!codeOrToken || !deviceId) {
+        return jsonOutput({ status: "error", message: "Código OTP ou identificador de dispositivo ausente." });
       }
 
       const state = getSecurityState();
-      let matchedKey = null;
+      const matched = state.invites.find(inv => 
+        inv.code.toLowerCase() === codeOrToken.toLowerCase() || 
+        inv.id === codeOrToken
+      );
 
-      for (const key in state.slots) {
-        const slot = state.slots[key];
-        if (slot.inviteToken === inviteToken) {
-          matchedKey = key;
-          break;
-        }
+      if (!matched) {
+        return jsonOutput({ status: "error", message: "Código de convite ou OTP inválido ou não encontrado." });
       }
 
-      if (!matchedKey) {
-        return jsonOutput({ status: "error", message: "Convite inválido ou inexistente." });
+      if (matched.used && matched.deviceId !== deviceId) {
+        return jsonOutput({ status: "error", message: "Este código OTP já foi utilizado em outro dispositivo." });
       }
 
-      const targetSlot = state.slots[matchedKey];
-      if (targetSlot.status === "active" && targetSlot.deviceId !== deviceId) {
-        return jsonOutput({ status: "error", message: "Este convite já foi utilizado e está vinculado a outro dispositivo." });
-      }
+      // Vincular dispositivo permanentemente
+      matched.used = true;
+      matched.deviceId = deviceId;
+      matched.activatedAt = new Date().toISOString();
 
-      // Vincular dispositivo permanentemente ao slot
-      targetSlot.status = "active";
-      targetSlot.deviceId = deviceId;
-      targetSlot.activatedAt = new Date().toISOString();
+      state.devices[deviceId] = {
+        role: "guest",
+        code: matched.code,
+        note: matched.note,
+        activatedAt: matched.activatedAt
+      };
+
       saveSecurityState(state);
 
       return jsonOutput({
         status: "success",
-        message: "Dispositivo autorizado com sucesso!",
-        slotKey: matchedKey,
+        authorized: true,
+        message: "Bem-vindo ao Clube Let's Be Readers!",
         role: "guest",
-        name: targetSlot.name
+        note: matched.note
       });
     }
 
