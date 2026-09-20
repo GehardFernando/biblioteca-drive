@@ -193,12 +193,12 @@ const PAGE_SIZE = 36;
 let visibleCount = PAGE_SIZE;
 
 // Chave de versão de cache local (invalida automaticamente caches de versões antigas garantindo 100% das capas atualizadas)
-const CACHE_KEY = "drive_books_cache_v9";
+const CACHE_KEY = "drive_books_cache_v10";
 
 // Expurgar proativamente caches legados corrompidos (mobile/desktop)
 if (typeof window !== "undefined") {
   try {
-    ["drive_books_cache", "drive_books_cache_v1", "drive_books_cache_v2", "drive_books_cache_v3", "drive_books_cache_v4", "drive_books_cache_v5", "drive_books_cache_v6", "drive_books_cache_v7", "drive_books_cache_v8"].forEach(k => {
+    ["drive_books_cache", "drive_books_cache_v1", "drive_books_cache_v2", "drive_books_cache_v3", "drive_books_cache_v4", "drive_books_cache_v5", "drive_books_cache_v6", "drive_books_cache_v7", "drive_books_cache_v8", "drive_books_cache_v9"].forEach(k => {
       localStorage.removeItem(k);
     });
   } catch (e) {}
@@ -358,29 +358,9 @@ let toastTimeout;
 // SEGURANÇA & CONTROLE DE ACESSO (3 SLOTS RESTRITOS)
 // ==========================================================================
 const ADMIN_MASTER_KEY = "lbr_master_gehard_8f93a1c72";
-const BASE_SITE_URL = "https://gehardfernando.github.io/biblioteca-drive/";
 
-// Elementos da Tela de Bloqueio (Clube Let's Be Readers)
-const lockScreen = document.getElementById("lockScreen");
-const mainContent = document.getElementById("mainContent");
+// Botão de acesso ao Painel Admin no cabeçalho
 const adminPanelBtn = document.getElementById("adminPanelBtn");
-const manualInviteInput = document.getElementById("manualInviteInput");
-const activateInviteBtn = document.getElementById("activateInviteBtn");
-const lockStatusMsg = document.getElementById("lockStatusMsg");
-const lockAdminTrigger = document.getElementById("lockAdminTrigger");
-
-// Elementos do Modal de Administração (Gerador de OTP e Membros)
-const adminModal = document.getElementById("adminModal");
-const closeAdminModal = document.getElementById("closeAdminModal");
-const adminOtpNote = document.getElementById("adminOtpNote");
-const adminGenerateOtpBtn = document.getElementById("adminGenerateOtpBtn");
-const adminLatestOtpBox = document.getElementById("adminLatestOtpBox");
-const adminLatestOtpCode = document.getElementById("adminLatestOtpCode");
-const adminLatestOtpNote = document.getElementById("adminLatestOtpNote");
-const copyLatestOtpBtn = document.getElementById("copyLatestOtpBtn");
-const copyLatestLinkBtn = document.getElementById("copyLatestLinkBtn");
-const refreshMembersBtn = document.getElementById("refreshMembersBtn");
-const adminMembersList = document.getElementById("adminMembersList");
 
 // Gera ou recupera o identificador único permanente deste aparelho (UUID)
 function getOrCreateDeviceId() {
@@ -425,538 +405,50 @@ function checkLaptopAuthority() {
   return false;
 }
 
-// Desbloquear site e exibir acervo completo
-function unlockSite() {
-  if (lockScreen) lockScreen.classList.add("hidden");
-  if (mainContent) mainContent.classList.remove("hidden");
-
-  const isAdmin = localStorage.getItem("lbr_role") === "admin";
-  if (adminPanelBtn) {
-    if (isAdmin) {
-      adminPanelBtn.classList.remove("hidden");
-    } else {
-      adminPanelBtn.classList.add("hidden");
-    }
-  }
-
-  // Renderizar o catálogo imediatamente
-  try {
-    buildCategoryPills();
-    renderBooks();
-    if (GOOGLE_DRIVE_API_URL && GOOGLE_DRIVE_API_URL.trim() !== "") {
-      syncWithGoogleDrive();
-    }
-  } catch (err) {
-    console.error("Erro ao inicializar catálogo após desbloqueio:", err);
-  }
-}
-
-// Exibir tela de bloqueio com mensagem
-function showLockScreen(msg = "", type = "error") {
-  if (lockScreen) lockScreen.classList.remove("hidden");
-  if (mainContent) mainContent.classList.add("hidden");
-  if (adminPanelBtn) adminPanelBtn.classList.add("hidden");
-
-  if (lockStatusMsg) {
-    if (msg) {
-      lockStatusMsg.textContent = msg;
-      lockStatusMsg.className = "lock-status-msg " + type;
-      lockStatusMsg.classList.remove("hidden");
-    } else {
-      lockStatusMsg.classList.add("hidden");
-    }
-  }
-}
-
-// Gestão de armazenamento local de convites (Fallback ágil e offline)
-function getLocalOtpPool() {
-  try {
-    const raw = localStorage.getItem("lbr_otp_pool");
-    if (raw) return JSON.parse(raw);
-  } catch (e) {}
-  return [];
-}
-
-function saveLocalOtpPool(pool) {
-  try {
-    localStorage.setItem("lbr_otp_pool", JSON.stringify(pool));
-  } catch (e) {}
-}
-
-// Extrair código ou token de uma entrada bruta (link, texto, números)
-function extractOtpOrToken(inputStr) {
-  if (!inputStr) return "";
-  let clean = inputStr.trim();
-  
-  // Se for URL completa ou query string
-  if (clean.includes("?")) {
-    try {
-      const url = new URL(clean, window.location.origin);
-      const otp = url.searchParams.get("otp");
-      const conv = url.searchParams.get("convite");
-      const adm = url.searchParams.get("admin");
-      if (adm) return adm.trim();
-      if (otp) return otp.trim();
-      if (conv) return conv.trim();
-    } catch (e) {}
-  }
-
-  // Regex para capturar otp=, convite= ou admin=
-  const matchParam = clean.match(/(?:otp|convite|admin)=([a-zA-Z0-9_-]+)/i);
-  if (matchParam) return matchParam[1].trim();
-
-  // Se contiver a chave mestre completa
-  if (clean.includes(ADMIN_MASTER_KEY)) return ADMIN_MASTER_KEY;
-
-  // Remove espaços ou hífens para OTP numérico
-  return clean.replace(/[\s-]/g, "");
-}
-
-// Processar ativação de convite / OTP
-async function processInviteToken(rawInput) {
-  if (!rawInput) {
-    showLockScreen("Por favor, digite o código OTP ou cole o link de convite.", "error");
-    return false;
-  }
-
-  const trimmed = rawInput.trim();
-
-  // 1. RECONHECIMENTO IMEDIATO DE ADMIN / CHAVE MESTRE
-  const isMasterKey = trimmed === ADMIN_MASTER_KEY ||
-                      trimmed.toLowerCase() === "gehard" ||
-                      trimmed.toLowerCase() === "admin" ||
-                      trimmed.includes(ADMIN_MASTER_KEY) ||
-                      trimmed.includes("admin=" + ADMIN_MASTER_KEY);
-
-  if (isMasterKey) {
-    localStorage.setItem("lbr_auth_status", "authorized");
-    localStorage.setItem("lbr_role", "admin");
-    localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
-    localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
-    window.history.replaceState({}, document.title, window.location.pathname);
-    showToast("🛡️ Autoridade Máxima ativada neste dispositivo!");
-    unlockSite();
+// Checagem de acesso à biblioteca (redireciona para entrar.html se não autorizado)
+function checkLibraryAccess() {
+  // 1. Checa se o laptop é o do Gehard
+  if (checkLaptopAuthority()) {
+    if (adminPanelBtn) adminPanelBtn.classList.remove("hidden");
     return true;
   }
 
-  const code = extractOtpOrToken(rawInput);
-  if (!code) {
-    showLockScreen("Por favor, digite o código OTP ou cole o link de convite.", "error");
-    return false;
-  }
-
-  // Se o código extraído for a chave mestre
-  if (code === ADMIN_MASTER_KEY) {
-    localStorage.setItem("lbr_auth_status", "authorized");
-    localStorage.setItem("lbr_role", "admin");
-    localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
-    localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
-    window.history.replaceState({}, document.title, window.location.pathname);
-    showToast("🛡️ Autoridade Máxima ativada neste dispositivo!");
-    unlockSite();
-    return true;
-  }
-
-  showLockScreen("Verificando seu código no Clube Let's Be Readers...", "loading");
-  const deviceId = getOrCreateDeviceId();
-
-  try {
-    const apiUrl = `${GOOGLE_DRIVE_API_URL}?action=activate_otp&code=${encodeURIComponent(code)}&deviceId=${encodeURIComponent(deviceId)}`;
-    const res = await fetch(apiUrl);
-    const data = await res.json();
-
-    if (data && data.status === "success") {
-      localStorage.setItem("lbr_auth_status", "authorized");
-      localStorage.setItem("lbr_role", "guest");
-      localStorage.setItem("lbr_member_name", data.note || "Membro do Clube");
-      window.history.replaceState({}, document.title, window.location.pathname);
-      showToast("✨ Bem-vindo ao Clube Let's Be Readers! Acesso liberado.");
-      unlockSite();
-      return true;
-    } else if (data && data.message) {
-      showLockScreen(data.message, "error");
-      return false;
-    }
-  } catch (err) {
-    console.warn("Validação online via nuvem teve lentidão:", err);
-  }
-
-  // Fallback local: verifica se o código confere com a base local
-  const pool = getLocalOtpPool();
-  const matched = pool.find(item => item.code.toLowerCase() === code.toLowerCase() || item.id === code);
-
-  if (matched) {
-    if (matched.used && matched.deviceId !== deviceId) {
-      showLockScreen("Este código OTP já foi utilizado em outro aparelho.", "error");
-      return false;
-    }
-    matched.used = true;
-    matched.deviceId = deviceId;
-    matched.activatedAt = new Date().toISOString();
-    saveLocalOtpPool(pool);
-
-    localStorage.setItem("lbr_auth_status", "authorized");
-    localStorage.setItem("lbr_role", "guest");
-    localStorage.setItem("lbr_member_name", matched.note || "Membro do Clube");
-    window.history.replaceState({}, document.title, window.location.pathname);
-    showToast("✨ Bem-vindo ao Clube Let's Be Readers!");
-    unlockSite();
-    return true;
-  }
-
-  // Se o código tiver formato de OTP válido (ex: 6 dígitos) e a nuvem não respondeu
-  if (/^\d{6}$/.test(code)) {
-    localStorage.setItem("lbr_auth_status", "authorized");
-    localStorage.setItem("lbr_role", "guest");
-    localStorage.setItem("lbr_member_name", "Membro do Clube");
-    window.history.replaceState({}, document.title, window.location.pathname);
-    showToast("✨ Bem-vindo ao Clube Let's Be Readers!");
-    unlockSite();
-    return true;
-  }
-
-  showLockScreen("Código OTP inválido ou expirado. Verifique e tente novamente.", "error");
-  return false;
-}
-
-// Fluxo de verificação de autenticação na carga da página
-async function handleAuthFlow() {
-  const isLaptopAdmin = checkLaptopAuthority();
-  if (isLaptopAdmin) {
-    unlockSite();
-    return true;
-  }
-
+  // 2. Parâmetro admin na URL
   const urlParams = new URLSearchParams(window.location.search);
   const adminParam = urlParams.get("admin");
-  const otpParam = urlParams.get("otp");
-  const inviteParam = urlParams.get("convite");
-
-  // 1. Acesso Mestre do Administrador via URL
   if (adminParam && (adminParam.trim() === ADMIN_MASTER_KEY || adminParam.trim().toLowerCase() === "gehard" || adminParam.trim().toLowerCase() === "admin")) {
     localStorage.setItem("lbr_auth_status", "authorized");
     localStorage.setItem("lbr_role", "admin");
     localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
     localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
     window.history.replaceState({}, document.title, window.location.pathname);
-    showToast("🛡️ Autoridade Máxima ativada neste dispositivo!");
-    unlockSite();
+    if (adminPanelBtn) adminPanelBtn.classList.remove("hidden");
     return true;
   }
 
-  // 2. Acesso via Link com OTP ou Convite Embutido
-  const codeFromUrl = otpParam || inviteParam;
-  if (codeFromUrl) {
-    return await processInviteToken(codeFromUrl.trim());
-  }
-
-  // 3. Credencial previamente salva no aparelho (acesso recorrente)
-  const isSavedAuth = localStorage.getItem("lbr_auth_status") === "authorized";
-  if (isSavedAuth) {
-    unlockSite();
+  // 3. Se usuário já está autorizado no aparelho
+  const isAuthorized = localStorage.getItem("lbr_auth_status") === "authorized";
+  if (isAuthorized) {
+    if (localStorage.getItem("lbr_role") === "admin" && adminPanelBtn) {
+      adminPanelBtn.classList.remove("hidden");
+    }
     return true;
   }
 
-  // 4. Visitante Não Autorizado -> Exibe Tela de Bloqueio do Clube
-  showLockScreen();
+  // 4. Se não estiver autorizado, redireciona suavemente para entrar.html
+  const currentSearch = window.location.search;
+  window.location.replace("entrar.html" + currentSearch);
   return false;
-}
-
-// Copiar texto para o clipboard com feedback
-async function copyTextWithFeedback(text, btnEl, successLabel = "Copiado! ✓") {
-  if (!text) return;
-  try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(text);
-    } else {
-      const tempInput = document.createElement("input");
-      tempInput.value = text;
-      document.body.appendChild(tempInput);
-      tempInput.select();
-      document.execCommand("copy");
-      document.body.removeChild(tempInput);
-    }
-
-    if (btnEl) {
-      const originalText = btnEl.innerHTML;
-      btnEl.classList.add("copied");
-      btnEl.innerHTML = `<span>${successLabel}</span>`;
-      setTimeout(() => {
-        btnEl.classList.remove("copied");
-        btnEl.innerHTML = originalText;
-      }, 2200);
-    }
-    showToast("Copiado para a área de transferência!");
-  } catch (err) {
-    showToast("Código pronto: " + text);
-  }
-}
-
-// Renderizar lista dinâmica de membros e convites no painel admin
-function renderMembersList(invites = []) {
-  if (!adminMembersList) return;
-  adminMembersList.innerHTML = "";
-
-  if (!invites || invites.length === 0) {
-    adminMembersList.innerHTML = `
-      <div class="members-empty-state">
-        <p>Nenhum convite emitido ainda. Clique em <strong>"Gerar OTP"</strong> acima para criar o primeiro!</p>
-      </div>
-    `;
-    return;
-  }
-
-  invites.forEach(item => {
-    const card = document.createElement("div");
-    card.className = "member-item-card";
-
-    const isUsed = item.used;
-    const badgeHtml = isUsed 
-      ? `<span class="slot-badge badge-active">Ativo • Vinculado</span>`
-      : `<span class="slot-badge badge-pending">Pendente (Aguardando)</span>`;
-
-    const formattedCode = item.code.length === 6 
-      ? `${item.code.substring(0, 3)} ${item.code.substring(3)}`
-      : item.code;
-
-    const fullLink = `${BASE_SITE_URL}?otp=${item.code}`;
-    const dateFormatted = item.activatedAt 
-      ? new Date(item.activatedAt).toLocaleDateString("pt-BR")
-      : (item.createdAt ? new Date(item.createdAt).toLocaleDateString("pt-BR") : "Hoje");
-
-    card.innerHTML = `
-      <div class="member-item-info">
-        <div class="member-item-title-row">
-          <span class="member-item-name">${item.note || "Convidado"}</span>
-          ${badgeHtml}
-        </div>
-        <div class="member-item-meta">
-          <span>OTP: <strong class="member-item-code">${formattedCode}</strong></span>
-          <span>• ${isUsed ? "Ativado em: " : "Criado em: "}${dateFormatted}</span>
-        </div>
-      </div>
-      <div class="member-item-actions">
-        <button class="btn-member-action copy-otp-item-btn" title="Copiar código OTP">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-          </svg>
-          <span>OTP</span>
-        </button>
-        <button class="btn-member-action copy-link-item-btn" title="Copiar Link Completo">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-          </svg>
-          <span>Link</span>
-        </button>
-        <button class="btn-member-action btn-member-revoke revoke-item-btn" title="Revogar acesso">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      </div>
-    `;
-
-    // Eventos dos botões do card
-    const copyOtpBtn = card.querySelector(".copy-otp-item-btn");
-    const copyLinkBtn = card.querySelector(".copy-link-item-btn");
-    const revokeBtn = card.querySelector(".revoke-item-btn");
-
-    if (copyOtpBtn) {
-      copyOtpBtn.onclick = () => copyTextWithFeedback(item.code, copyOtpBtn, "Copiado!");
-    }
-    if (copyLinkBtn) {
-      copyLinkBtn.onclick = () => copyTextWithFeedback(fullLink, copyLinkBtn, "Copiado!");
-    }
-    if (revokeBtn) {
-      revokeBtn.onclick = () => revokeOtpOrMember(item.id || item.code);
-    }
-
-    adminMembersList.appendChild(card);
-  });
-}
-
-// Revogar um membro ou código OTP
-async function revokeOtpOrMember(targetId) {
-  if (!confirm("Deseja revogar o acesso ou cancelar este código de convite?")) return;
-
-  // Atualiza local pool
-  let pool = getLocalOtpPool();
-  pool = pool.filter(inv => inv.id !== targetId && inv.code !== targetId);
-  saveLocalOtpPool(pool);
-  renderMembersList(pool);
-
-  try {
-    await fetch(`${GOOGLE_DRIVE_API_URL}?action=admin_revoke_invite&adminKey=${encodeURIComponent(ADMIN_MASTER_KEY)}&id=${encodeURIComponent(targetId)}`);
-  } catch (err) {}
-
-  showToast("Acesso/código revogado com sucesso!");
-}
-
-// Gerar novo código OTP de 6 dígitos
-async function generateNewOtp() {
-  const note = (adminOtpNote && adminOtpNote.value.trim()) || "Convidado";
-  let otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-  const newInvite = {
-    id: "otp_" + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
-    code: otpCode,
-    note: note,
-    createdAt: new Date().toISOString(),
-    used: false,
-    deviceId: null,
-    activatedAt: null
-  };
-
-  // Tenta criar na nuvem (Apps Script)
-  try {
-    const res = await fetch(`${GOOGLE_DRIVE_API_URL}?action=admin_create_otp&adminKey=${encodeURIComponent(ADMIN_MASTER_KEY)}&note=${encodeURIComponent(note)}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.status === "success" && data.otpCode) {
-        otpCode = data.otpCode;
-        newInvite.code = data.otpCode;
-        if (data.invite && data.invite.id) newInvite.id = data.invite.id;
-      }
-    }
-  } catch (err) {
-    console.warn("Geração de OTP sincronizou localmente:", err);
-  }
-
-  // Salva no pool local
-  const pool = getLocalOtpPool();
-  pool.unshift(newInvite);
-  saveLocalOtpPool(pool);
-
-  // Exibe o card de destaque do código recém-criado
-  if (adminLatestOtpBox) {
-    adminLatestOtpBox.classList.remove("hidden");
-    if (adminLatestOtpNote) adminLatestOtpNote.textContent = `Para: ${note}`;
-    if (adminLatestOtpCode) {
-      adminLatestOtpCode.textContent = `${otpCode.substring(0, 3)} ${otpCode.substring(3)}`;
-    }
-
-    const fullUrl = `${BASE_SITE_URL}?otp=${otpCode}`;
-    if (copyLatestOtpBtn) {
-      copyLatestOtpBtn.onclick = () => copyTextWithFeedback(otpCode, copyLatestOtpBtn, "OTP Copiado! ✓");
-    }
-    if (copyLatestLinkBtn) {
-      copyLatestLinkBtn.onclick = () => copyTextWithFeedback(fullUrl, copyLatestLinkBtn, "Link Copiado! ✓");
-    }
-  }
-
-  if (adminOtpNote) adminOtpNote.value = "";
-  renderMembersList(pool);
-  showToast("⚡ Novo código OTP gerado com sucesso!");
-}
-
-// Abrir painel do administrador e carregar convites
-async function openAdminPanel() {
-  if (!adminModal) return;
-  adminModal.classList.remove("hidden");
-
-  // Renderiza imediatamente com os dados locais
-  const localPool = getLocalOtpPool();
-  renderMembersList(localPool);
-
-  // Busca lista atualizada da nuvem
-  try {
-    const res = await fetch(`${GOOGLE_DRIVE_API_URL}?action=admin_list_invites&adminKey=${encodeURIComponent(ADMIN_MASTER_KEY)}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.status === "success" && data.invites) {
-        // Mesclar dados da nuvem com dados locais
-        saveLocalOtpPool(data.invites);
-        renderMembersList(data.invites);
-      }
-    }
-  } catch (e) {}
-}
-
-// Configurar ouvintes de eventos de segurança e painel
-function setupSecurityListeners() {
-  // Ativação de convite ou código OTP na tela de bloqueio
-  if (activateInviteBtn && manualInviteInput) {
-    activateInviteBtn.onclick = async () => {
-      const raw = manualInviteInput.value.trim();
-      if (!raw) return;
-      activateInviteBtn.disabled = true;
-      const originalText = activateInviteBtn.innerHTML;
-      activateInviteBtn.innerHTML = "<span>Entrando...</span>";
-      await processInviteToken(raw);
-      activateInviteBtn.disabled = false;
-      activateInviteBtn.innerHTML = originalText;
-    };
-
-    manualInviteInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        activateInviteBtn.click();
-      }
-    });
-  }
-
-  // Gatilho para Painel do Administrador na tela de bloqueio
-  if (lockAdminTrigger) {
-    lockAdminTrigger.onclick = () => {
-      localStorage.setItem("lbr_auth_status", "authorized");
-      localStorage.setItem("lbr_role", "admin");
-      localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
-      localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
-      showToast("🛡️ Bem-vindo, Gehard! Painel do Administrador liberado.");
-      unlockSite();
-      openAdminPanel();
-    };
-  }
-
-  // Botão na Navbar para abrir o painel do Administrador
-  if (adminPanelBtn) {
-    adminPanelBtn.onclick = () => openAdminPanel();
-  }
-
-  // Fechar Modal de Administração
-  if (closeAdminModal) {
-    closeAdminModal.onclick = () => {
-      if (adminModal) adminModal.classList.add("hidden");
-    };
-  }
-
-  if (adminModal) {
-    adminModal.onclick = (e) => {
-      if (e.target === adminModal) adminModal.classList.add("hidden");
-    };
-  }
-
-  // Gerar Novo Código OTP
-  if (adminGenerateOtpBtn) {
-    adminGenerateOtpBtn.onclick = () => generateNewOtp();
-  }
-
-  if (adminOtpNote) {
-    adminOtpNote.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        generateNewOtp();
-      }
-    });
-  }
-
-  // Botão de Atualizar Membros
-  if (refreshMembersBtn) {
-    refreshMembersBtn.onclick = () => openAdminPanel();
-  }
 }
 
 // Inicialização da Aplicação
 document.addEventListener("DOMContentLoaded", async () => {
   setupEventListeners();
-  setupSecurityListeners();
 
   // Executa validação de autoridade e segurança
-  const isAuthorized = await handleAuthFlow();
-  if (!isAuthorized) {
-    return; // Permanece na tela de bloqueio
+  const canAccess = checkLibraryAccess();
+  if (!canAccess) {
+    return;
   }
 
   // Render inicial com os dados disponíveis

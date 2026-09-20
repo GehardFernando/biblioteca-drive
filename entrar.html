@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0e17" />
+  <title>Entrar no Clube | Let's Be Readers</title>
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css?v=20260919_v10" />
+</head>
+<body class="auth-page">
+
+  <!-- Background Ambient Glow -->
+  <div class="ambient-glow glow-top-left"></div>
+  <div class="ambient-glow glow-bottom-right"></div>
+
+  <!-- Header Mínimo -->
+  <header class="auth-navbar">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/>
+          <path d="M6 6h10"/>
+          <path d="M6 10h10"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <span class="brand-title">Let's Be Readers</span>
+        <span class="brand-tag">Clube Privado</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Container Central de Acesso -->
+  <main class="auth-container">
+    <div class="lock-card">
+      <div class="lock-icon-badge">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/>
+          <path d="M9 10h6"/>
+          <circle cx="12" cy="14" r="2"/>
+        </svg>
+      </div>
+
+      <div class="lock-club-pill">🔒 Clube Exclusivo</div>
+      <h1 class="lock-title">Clube Let's Be Readers</h1>
+      <p class="lock-subtitle">Só quem faz parte do clube Let's Be Readers pode entrar.</p>
+      <p class="lock-desc">Digite abaixo o seu código OTP de 6 dígitos (ou cole o link exclusivo que você recebeu) para liberar o acesso ao acervo neste aparelho.</p>
+
+      <form id="inviteForm" class="lock-action-box" onsubmit="return false;">
+        <div class="lock-input-group">
+          <input 
+            type="text" 
+            id="inviteInput" 
+            class="lock-input lock-otp-input" 
+            placeholder="Ex: 849201 ou cole o link..." 
+            autocomplete="off" 
+            maxlength="120"
+            autofocus
+          />
+          <button type="submit" class="btn btn-primary btn-unlock-club" id="submitBtn">
+            <span>Entrar no Clube</span>
+          </button>
+        </div>
+        <div class="lock-status-msg hidden" id="statusMsg"></div>
+      </form>
+
+      <div class="lock-footer">
+        <a href="admin.html" class="lock-admin-trigger" id="adminLink">⚡ Sou o Administrador (Abrir Painel Admin)</a>
+      </div>
+    </div>
+  </main>
+
+  <!-- Notificação Toast -->
+  <div class="toast-notification hidden" id="toastNotification">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+    <span id="toastMessage">Pronto!</span>
+  </div>
+
+  <script src="entrar.js?v=20260919_v10"></script>
+</body>
+</html>

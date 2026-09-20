@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20260919_v9" />
+  <link rel="stylesheet" href="style.css?v=20260919_v10" />
 </head>
 <body>
 
@@ -61,12 +61,12 @@
           </svg>
           <span class="btn-kindle-nav-text">Kindle</span>
         </button>
-        <button class="btn-admin-nav hidden" id="adminPanelBtn" title="Gerenciar Convites e Acessos">
+        <a href="admin.html" class="btn-admin-nav hidden" id="adminPanelBtn" title="Gerenciar Convites e Acessos">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
           </svg>
           <span class="btn-admin-nav-text">Gerar Convites (Admin)</span>
-        </button>
+        </a>
         <button class="btn-sync" id="syncDriveBtn" title="Atualizar Catálogo">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
@@ -79,44 +79,6 @@
       </div>
     </div>
   </header>
-
-  <!-- Tela de Bloqueio (Clube Let's Be Readers) -->
-  <section class="lock-screen hidden" id="lockScreen">
-    <div class="lock-card">
-      <div class="lock-icon-badge">
-        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/>
-          <path d="M9 10h6"/>
-          <circle cx="12" cy="14" r="2"/>
-        </svg>
-      </div>
-      <div class="lock-club-pill">🔒 Clube Exclusivo</div>
-      <h2 class="lock-title">Clube Let's Be Readers</h2>
-      <p class="lock-subtitle">Só quem faz parte do clube Let's Be Readers pode entrar.</p>
-      <p class="lock-desc">Insira abaixo o seu código OTP de convite (ou cole o link exclusivo que você recebeu) para registrar seu aparelho e liberar o acesso à biblioteca.</p>
-      
-      <div class="lock-action-box">
-        <div class="lock-input-group">
-          <input 
-            type="text" 
-            id="manualInviteInput" 
-            class="lock-input lock-otp-input" 
-            placeholder="Ex: 849201 ou cole o link..." 
-            autocomplete="off" 
-            maxlength="120"
-          />
-          <button class="btn btn-primary btn-unlock-club" id="activateInviteBtn">
-            <span>Entrar no Clube</span>
-          </button>
-        </div>
-        <div class="lock-status-msg hidden" id="lockStatusMsg"></div>
-      </div>
-
-      <div class="lock-footer">
-        <button class="lock-admin-trigger" id="lockAdminTrigger">⚡ Sou o Administrador (Abrir Gerador de Convites)</button>
-      </div>
-    </div>
-  </section>
 
   <!-- Conteúdo Principal -->
   <main class="main-container" id="mainContent">
@@ -384,107 +346,6 @@
     </div>
   </div>
 
-  <!-- Modal de Administração (Gerenciamento Dinâmico de Convites OTP) -->
-  <div class="modal-overlay hidden" id="adminModal">
-    <div class="modal-card admin-modal-card">
-      <div class="modal-header">
-        <div class="admin-modal-title-box">
-          <div class="admin-modal-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-            </svg>
-          </div>
-          <div>
-            <h3 class="modal-title">Painel de Membros & Convites (OTP)</h3>
-            <p class="admin-modal-desc">Clube Let's Be Readers — Geração de convites e dispositivos autorizados.</p>
-          </div>
-        </div>
-        <button class="modal-close" id="closeAdminModal" title="Fechar">&times;</button>
-      </div>
-
-      <div class="admin-modal-body">
-        
-        <!-- Seção: Gerar Novo Convite OTP -->
-        <div class="admin-generator-card">
-          <h4 class="admin-section-title">⚡ Gerar Novo Convite (OTP)</h4>
-          <p class="admin-section-subtitle">Gere um código de uso único para novos convidados. Ao ativar, o aparelho deles será vinculado permanentemente.</p>
-          
-          <div class="otp-generator-form">
-            <input 
-              type="text" 
-              class="otp-note-input" 
-              id="adminOtpNote" 
-              placeholder="Nome ou nota (ex: Lucas, Mariana...)" 
-              maxlength="40"
-            />
-            <button class="btn btn-primary btn-generate-otp" id="adminGenerateOtpBtn">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-              </svg>
-              <span>Gerar OTP</span>
-            </button>
-          </div>
-
-          <!-- Box de Destaque do Código Gerado -->
-          <div class="latest-otp-box hidden" id="adminLatestOtpBox">
-            <div class="latest-otp-header">
-              <span class="latest-otp-label">Novo Código Criado:</span>
-              <span class="latest-otp-tag" id="adminLatestOtpNote">Para: Convidado</span>
-            </div>
-            <div class="latest-otp-display" id="adminLatestOtpCode">000 000</div>
-            <div class="latest-otp-actions">
-              <button class="btn-otp-action" id="copyLatestOtpBtn" title="Copiar apenas os 6 dígitos">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-                <span>Copiar Código OTP</span>
-              </button>
-              <button class="btn-otp-action btn-otp-link" id="copyLatestLinkBtn" title="Copiar link com código embutido">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                </svg>
-                <span>Copiar Link Completo</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Seção: Membros e Convites Emitidos -->
-        <div class="admin-members-section">
-          <div class="admin-members-header">
-            <h4 class="admin-section-title">👥 Membros & Convites Ativos</h4>
-            <button class="btn-members-refresh" id="refreshMembersBtn" title="Atualizar Lista">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
-              </svg>
-              <span>Atualizar</span>
-            </button>
-          </div>
-
-          <!-- Card Fixo: Administrador -->
-          <div class="slot-card slot-admin">
-            <div class="slot-header">
-              <div class="slot-info">
-                <span class="slot-tag">Admin</span>
-                <h4 class="slot-name">Seu Laptop (Gehard)</h4>
-              </div>
-              <span class="slot-badge badge-admin">Autoridade Máxima</span>
-            </div>
-            <p class="slot-status-desc">Dispositivo mestre permanente com controle de convites e acesso irrestrito.</p>
-          </div>
-
-          <!-- Lista Dinâmica de Membros e OTPs -->
-          <div class="admin-members-list" id="adminMembersList">
-            <!-- Inserido dinamicamente via app.js -->
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </div>
-
   <!-- Notificação Toast (Feedback de download) -->
   <div class="toast-notification hidden" id="toastNotification">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -493,7 +354,7 @@
     <span id="toastMessage">Download iniciado!</span>
   </div>
 
-  <script src="books-data.js?v=20260919_v9"></script>
-  <script src="app.js?v=20260919_v9"></script>
+  <script src="books-data.js?v=20260919_v10"></script>
+  <script src="app.js?v=20260919_v10"></script>
 </body>
 </html>

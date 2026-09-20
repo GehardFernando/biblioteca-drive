@@ -74,9 +74,16 @@
   - **Lista Dinâmica de Membros & Convites:**
     - Visualização de membros ativos e convites pendentes.
     - Ações rápidas para copiar códigos ou revogar acessos a qualquer momento.
-- **Invalidação de Cache Proativa (v7):**
-  - Cache local atualizado para `drive_books_cache_v7` com limpeza de versões legadas (`v1` a `v6`).
-  - Tags de scripts e estilos atualizadas para `?v=20260919_v7`.
+### ✅ Fase 8: Desacoplamento & Arquitetura em 3 Páginas Dedicadas (`index`, `admin`, `entrar`)
+- **Fim da Aplicação Monolítica de Página Única:**
+  - O site foi dividido em 3 páginas autônomas, limpas e especializadas:
+  1. [`index.html`](./index.html): **Biblioteca Digital.** Apenas a estante, filtros, pesquisa, cards de livros e modais de leitura/Kindle. Usuários não autenticados são suavemente redirecionados para o portal de entrada.
+  2. [`admin.html`](./admin.html): **Painel do Administrador.** Tela exclusiva, ampla e sem distrações para Gehard emitir convites OTP de uso único, copiar links com 1 clique, auditar membros vinculados e disparar sincronização com o Drive.
+  3. [`entrar.html`](./entrar.html): **Portal de Entrada do Clube.** Gatekeeper temático com o aviso *"Só quem faz parte do clube Let's Be Readers pode entrar."*, campo para OTP de 6 dígitos, validação de links diretos e vinculação de UUID.
+- **Autoridade Máxima Zero-Prompt:**
+  - O laptop do Gehard (Ubuntu x86_64) e acessos locais têm autoridade master reconhecida instantaneamente sem nenhuma caixa de diálogo ou prompt de chave.
+- **Invalidação de Cache Proativa (v10):**
+  - Cache local atualizado para `drive_books_cache_v10` com limpeza de versões anteriores.
 
 ---
 
@@ -84,15 +91,19 @@
 
 | Arquivo | Descrição |
 | :--- | :--- |
-| [`index.html`](./index.html) | Estrutura semântica: header, tela de bloqueio do clube, painel modal gerador de OTPs e grid de livros. |
-| [`style.css`](./style.css) | Sistema de design dark com cards glassmorphism, destaque para código OTP e responsividade total. |
-| [`app.js`](./app.js) | Lógica da aplicação: validação de OTP/UUID, gerador de convites, cache v7, busca instantânea e downloads. |
-| [`google-drive-sync.gs`](./google-drive-sync.gs) | Script do Google Apps Script para leitura contínua e em tempo real da pasta do Google Drive. |
+| [`index.html`](./index.html) | Página principal da biblioteca digital: catálogo de 661 livros, busca instantânea e Kindle. |
+| [`admin.html`](./admin.html) | Dashboard dedicado do administrador: gerador de OTPs, botões de cópia rápida e lista de membros. |
+| [`admin.js`](./admin.js) | Lógica administrativa: autoridade máxima, geração de OTPs, sync Drive e gestão de membros. |
+| [`entrar.html`](./entrar.html) | Portal de acesso do clube com mensagem de exclusividade e validação de convites. |
+| [`entrar.js`](./entrar.js) | Lógica do gatekeeper: validação de códigos OTP de 6 dígitos, parsing de links e binding de UUID. |
+| [`style.css`](./style.css) | Design system obsidiana dark com estilos dedicados para a biblioteca, admin e login. |
+| [`app.js`](./app.js) | Lógica da biblioteca: checagem de autorização, renderização de livros, filtros e busca. |
+| [`google-drive-sync.gs`](./google-drive-sync.gs) | Script do Google Apps Script com endpoints para Drive sync e persistência em nuvem de OTPs. |
 | [`scan_books.py`](./scan_books.py) | Indexador Python com extração profunda e resiliente de capas. |
 | [`books.json`](./books.json) & [`books-data.js`](./books-data.js) | Base de dados estruturada com 661 livros e 100% de capas cobertas. |
 | [`capas/`](./capas/) | Diretório com 661 capas reais indexadas deterministicamente por hash SHA-256. |
 | [`.gitignore`](./.gitignore) | Proteção para não subir arquivos binários pesados de livros para o repositório Git. |
-| [`PROJETO_STATUS.md`](./PROJETO_STATUS.md) | Documentação de status e arquitetura do projeto. |
+| [`PROJETO_STATUS.md`](./PROJETO_STATUS.md) | Documentação completa de status e arquitetura do projeto. |
 
 ---
 
