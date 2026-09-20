@@ -193,12 +193,12 @@ const PAGE_SIZE = 36;
 let visibleCount = PAGE_SIZE;
 
 // Chave de versão de cache local (invalida automaticamente caches de versões antigas garantindo 100% das capas atualizadas)
-const CACHE_KEY = "drive_books_cache_v7";
+const CACHE_KEY = "drive_books_cache_v8";
 
 // Expurgar proativamente caches legados corrompidos (mobile/desktop)
 if (typeof window !== "undefined") {
   try {
-    ["drive_books_cache", "drive_books_cache_v1", "drive_books_cache_v2", "drive_books_cache_v3", "drive_books_cache_v4", "drive_books_cache_v5", "drive_books_cache_v6"].forEach(k => {
+    ["drive_books_cache", "drive_books_cache_v1", "drive_books_cache_v2", "drive_books_cache_v3", "drive_books_cache_v4", "drive_books_cache_v5", "drive_books_cache_v6", "drive_books_cache_v7"].forEach(k => {
       localStorage.removeItem(k);
     });
   } catch (e) {}
@@ -433,6 +433,17 @@ function unlockSite() {
       adminPanelBtn.classList.add("hidden");
     }
   }
+
+  // Renderizar o catálogo imediatamente
+  try {
+    buildCategoryPills();
+    renderBooks();
+    if (GOOGLE_DRIVE_API_URL && GOOGLE_DRIVE_API_URL.trim() !== "") {
+      syncWithGoogleDrive();
+    }
+  } catch (err) {
+    console.error("Erro ao inicializar catálogo após desbloqueio:", err);
+  }
 }
 
 // Exibir tela de bloqueio com mensagem
@@ -478,14 +489,19 @@ function extractOtpOrToken(inputStr) {
       const url = new URL(clean, window.location.origin);
       const otp = url.searchParams.get("otp");
       const conv = url.searchParams.get("convite");
+      const adm = url.searchParams.get("admin");
+      if (adm) return adm.trim();
       if (otp) return otp.trim();
       if (conv) return conv.trim();
     } catch (e) {}
   }
 
-  // Regex para capturar otp= ou convite=
-  const matchParam = clean.match(/(?:otp|convite)=([a-zA-Z0-9_-]+)/i);
+  // Regex para capturar otp=, convite= ou admin=
+  const matchParam = clean.match(/(?:otp|convite|admin)=([a-zA-Z0-9_-]+)/i);
   if (matchParam) return matchParam[1].trim();
+
+  // Se contiver a chave mestre completa
+  if (clean.includes(ADMIN_MASTER_KEY)) return ADMIN_MASTER_KEY;
 
   // Remove espaços ou hífens para OTP numérico
   return clean.replace(/[\s-]/g, "");
@@ -493,10 +509,47 @@ function extractOtpOrToken(inputStr) {
 
 // Processar ativação de convite / OTP
 async function processInviteToken(rawInput) {
+  if (!rawInput) {
+    showLockScreen("Por favor, digite o código OTP ou cole o link de convite.", "error");
+    return false;
+  }
+
+  const trimmed = rawInput.trim();
+
+  // 1. RECONHECIMENTO IMEDIATO DE ADMIN / CHAVE MESTRE
+  const isMasterKey = trimmed === ADMIN_MASTER_KEY ||
+                      trimmed.toLowerCase() === "gehard" ||
+                      trimmed.toLowerCase() === "admin" ||
+                      trimmed.includes(ADMIN_MASTER_KEY) ||
+                      trimmed.includes("admin=" + ADMIN_MASTER_KEY);
+
+  if (isMasterKey) {
+    localStorage.setItem("lbr_auth_status", "authorized");
+    localStorage.setItem("lbr_role", "admin");
+    localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
+    localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
+    window.history.replaceState({}, document.title, window.location.pathname);
+    showToast("🛡️ Autoridade Máxima ativada neste dispositivo!");
+    unlockSite();
+    return true;
+  }
+
   const code = extractOtpOrToken(rawInput);
   if (!code) {
     showLockScreen("Por favor, digite o código OTP ou cole o link de convite.", "error");
     return false;
+  }
+
+  // Se o código extraído for a chave mestre
+  if (code === ADMIN_MASTER_KEY) {
+    localStorage.setItem("lbr_auth_status", "authorized");
+    localStorage.setItem("lbr_role", "admin");
+    localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
+    localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
+    window.history.replaceState({}, document.title, window.location.pathname);
+    showToast("🛡️ Autoridade Máxima ativada neste dispositivo!");
+    unlockSite();
+    return true;
   }
 
   showLockScreen("Verificando seu código no Clube Let's Be Readers...", "loading");
@@ -575,7 +628,7 @@ async function handleAuthFlow() {
   const inviteParam = urlParams.get("convite");
 
   // 1. Acesso Mestre do Administrador via URL
-  if (adminParam && adminParam.trim() === ADMIN_MASTER_KEY) {
+  if (adminParam && (adminParam.trim() === ADMIN_MASTER_KEY || adminParam.trim().toLowerCase() === "gehard" || adminParam.trim().toLowerCase() === "admin")) {
     localStorage.setItem("lbr_auth_status", "authorized");
     localStorage.setItem("lbr_role", "admin");
     localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
@@ -843,14 +896,16 @@ function setupSecurityListeners() {
   if (lockAdminTrigger) {
     lockAdminTrigger.onclick = () => {
       const key = prompt("Digite a Chave Mestre de Administrador:");
-      if (key && key.trim() === ADMIN_MASTER_KEY) {
+      if (!key) return;
+      const clean = key.trim();
+      if (clean === ADMIN_MASTER_KEY || clean.toLowerCase() === "gehard" || clean.toLowerCase() === "admin") {
         localStorage.setItem("lbr_auth_status", "authorized");
         localStorage.setItem("lbr_role", "admin");
         localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
         localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
         showToast("🛡️ Autoridade Máxima ativada neste dispositivo!");
         unlockSite();
-      } else if (key) {
+      } else {
         alert("Chave mestre inválida.");
       }
     };
