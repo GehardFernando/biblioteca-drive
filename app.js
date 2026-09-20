@@ -376,18 +376,20 @@ function getOrCreateDeviceId() {
   return id;
 }
 
-// Reconhecer este laptop como Autoridade Máxima permanente
+const AUTH_STATUS_KEY = "lbr_club_auth_v12";
+
+// Reconhecer este computador/laptop como Autoridade Máxima permanente
 function checkLaptopAuthority() {
   if (typeof window === "undefined") return false;
 
   const ua = navigator.userAgent || "";
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
 
-  // Celulares são terminantemente proibidos de ter perfil de administrador
+  // Celulares e tablets NUNCA são considerados autoridade máxima
   if (isMobile) {
     try {
       if (localStorage.getItem("lbr_role") === "admin") {
-        localStorage.setItem("lbr_role", "guest");
+        localStorage.removeItem("lbr_role");
       }
       localStorage.removeItem("lbr_admin_key");
     } catch(e) {}
@@ -399,14 +401,14 @@ function checkLaptopAuthority() {
                   window.location.protocol === "file:" ||
                   window.location.hostname === "";
 
-  // Detecção estrita do laptop Linux desktop do Gehard (Ubuntu x86_64)
+  // Detecção estrita do computador Linux desktop do Gehard (Ubuntu x86_64)
   const isGehardLaptop = typeof navigator !== "undefined" &&
                          (navigator.platform && navigator.platform.includes("Linux")) &&
                          (!ua.includes("Android")) &&
                          (!isMobile);
 
   if (isLocal || isGehardLaptop) {
-    localStorage.setItem("lbr_auth_status", "authorized");
+    localStorage.setItem(AUTH_STATUS_KEY, "authorized");
     localStorage.setItem("lbr_role", "admin");
     localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
     localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
@@ -422,10 +424,15 @@ function checkLaptopAuthority() {
 
 // Checagem de acesso à biblioteca (redireciona para entrar.html se não autorizado)
 function checkLibraryAccess() {
+  // Limpeza de autorizações legadas que possam ter ficado no cache do celular
+  try {
+    localStorage.removeItem("lbr_auth_status");
+  } catch(e) {}
+
   const ua = navigator.userAgent || "";
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
 
-  // 1. Checa se o laptop é o do Gehard
+  // 1. Checa se o laptop é o do Gehard (acesso livre e imediato)
   if (checkLaptopAuthority()) {
     if (adminPanelBtn) adminPanelBtn.classList.remove("hidden");
     return true;
@@ -440,7 +447,7 @@ function checkLibraryAccess() {
   const urlParams = new URLSearchParams(window.location.search);
   const adminParam = urlParams.get("admin");
   if (!isMobile && adminParam && (adminParam.trim() === ADMIN_MASTER_KEY || adminParam.trim().toLowerCase() === "gehard")) {
-    localStorage.setItem("lbr_auth_status", "authorized");
+    localStorage.setItem(AUTH_STATUS_KEY, "authorized");
     localStorage.setItem("lbr_role", "admin");
     localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
     localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
@@ -449,8 +456,8 @@ function checkLibraryAccess() {
     return true;
   }
 
-  // 3. Se usuário já está autorizado no aparelho
-  const isAuthorized = localStorage.getItem("lbr_auth_status") === "authorized";
+  // 3. Se usuário/convidado já foi autorizado neste aparelho com convite válido v12
+  const isAuthorized = localStorage.getItem(AUTH_STATUS_KEY) === "authorized";
   if (isAuthorized) {
     if (!isMobile && localStorage.getItem("lbr_role") === "admin" && adminPanelBtn) {
       adminPanelBtn.classList.remove("hidden");
@@ -460,7 +467,7 @@ function checkLibraryAccess() {
     return true;
   }
 
-  // 4. Se não estiver autorizado, redireciona suavemente para entrar.html
+  // 4. Se não estiver autorizado (ex: celular sem OTP), redireciona imediatamente para entrar.html
   const currentSearch = window.location.search;
   window.location.replace("entrar.html" + currentSearch);
   return false;

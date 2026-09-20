@@ -3,7 +3,8 @@
 // ==========================================================================
 const ADMIN_MASTER_KEY = "lbr_master_gehard_8f93a1c72";
 const GOOGLE_DRIVE_API_URL = "https://script.google.com/macros/s/AKfycbwGk2epbZ3thFo8ZJhHQDLUEZffTRobl657b6hGKMXNJUXUBtn9cSVUtgIDoHhzaW4rww/exec";
-const OTP_VALIDITY_MS = 5 * 60 * 1000; // 5 minutos de validade
+const OTP_VALIDITY_MS = 5 * 60 * 1000; // 5 minutos de validade estrita
+const AUTH_STATUS_KEY = "lbr_club_auth_v12";
 
 const inviteInput = document.getElementById("inviteInput");
 const submitBtn = document.getElementById("submitBtn");
@@ -48,7 +49,7 @@ function getOrCreateDeviceId() {
   return id;
 }
 
-// Reconhece estritamente o laptop Linux do Gehard (Celulares NUNCA são autorizados como admin)
+// Reconhece estritamente o computador/laptop do Gehard
 function checkLaptopAuthority() {
   if (typeof window === "undefined") return false;
 
@@ -75,7 +76,7 @@ function checkLaptopAuthority() {
                          (!isMobile);
 
   if (isLocal || isLinuxDesktop) {
-    localStorage.setItem("lbr_auth_status", "authorized");
+    localStorage.setItem(AUTH_STATUS_KEY, "authorized");
     localStorage.setItem("lbr_role", "admin");
     localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
     localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
@@ -131,7 +132,7 @@ async function validateAndEnter(rawInput) {
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent);
 
   if (isMasterKey && !isMobile) {
-    localStorage.setItem("lbr_auth_status", "authorized");
+    localStorage.setItem(AUTH_STATUS_KEY, "authorized");
     localStorage.setItem("lbr_role", "admin");
     localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
     localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
@@ -175,7 +176,7 @@ async function validateAndEnter(rawInput) {
     const data = await res.json();
 
     if (data && data.status === "success") {
-      localStorage.setItem("lbr_auth_status", "authorized");
+      localStorage.setItem(AUTH_STATUS_KEY, "authorized");
       localStorage.setItem("lbr_role", "guest");
       localStorage.setItem("lbr_member_name", data.note || "Membro do Clube");
       showToast("✨ Bem-vindo ao Clube Let's Be Readers! Acesso liberado.");
@@ -192,14 +193,35 @@ async function validateAndEnter(rawInput) {
     console.warn("Validação online via nuvem teve lentidão:", err);
   }
 
-  // 4. Verificação no banco local de convites (com verificação de 5 minutos)
+  // 4. Verificação no banco local de convites (com verificação estrita de 5 minutos)
   try {
+    // Checa active_otp gerado
+    const rawActive = localStorage.getItem("lbr_active_otp");
+    if (rawActive) {
+      const active = JSON.parse(rawActive);
+      if (active && active.code === code) {
+        if (now > active.expiresAt) {
+          showStatus("❌ Este código OTP expirou (a validade de 5 minutos foi excedida). Peça um novo código ao administrador.", "error");
+          if (submitBtn) submitBtn.disabled = false;
+          return;
+        }
+        localStorage.setItem(AUTH_STATUS_KEY, "authorized");
+        localStorage.setItem("lbr_role", "guest");
+        localStorage.setItem("lbr_member_name", active.note || "Membro do Clube");
+        showToast("✨ Bem-vindo ao Clube Let's Be Readers!");
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 600);
+        return;
+      }
+    }
+
+    // Checa pool de convites
     const rawPool = localStorage.getItem("lbr_otp_pool");
     if (rawPool) {
       const pool = JSON.parse(rawPool);
       const matched = pool.find(item => item.code.toLowerCase() === code.toLowerCase() || item.id === code);
       if (matched) {
-        // Checa se expirou (5 minutos)
         const expTime = matched.expiresAt ? new Date(matched.expiresAt).getTime() : 0;
         if (expTime > 0 && now > expTime) {
           showStatus("❌ Este código OTP expirou (a validade de 5 minutos foi excedida). Peça um novo código ao administrador.", "error");
@@ -207,7 +229,6 @@ async function validateAndEnter(rawInput) {
           return;
         }
 
-        // Checa se já foi usado em outro aparelho
         if (matched.used && matched.deviceId !== deviceId) {
           showStatus("❌ Este código OTP já foi utilizado em outro aparelho.", "error");
           if (submitBtn) submitBtn.disabled = false;
@@ -219,7 +240,7 @@ async function validateAndEnter(rawInput) {
         matched.activatedAt = new Date().toISOString();
         localStorage.setItem("lbr_otp_pool", JSON.stringify(pool));
 
-        localStorage.setItem("lbr_auth_status", "authorized");
+        localStorage.setItem(AUTH_STATUS_KEY, "authorized");
         localStorage.setItem("lbr_role", "guest");
         localStorage.setItem("lbr_member_name", matched.note || "Membro do Clube");
         showToast("✨ Bem-vindo ao Clube Let's Be Readers!");
@@ -229,47 +250,20 @@ async function validateAndEnter(rawInput) {
         return;
       }
     }
-
-    // Checa se corresponde ao active_otp
-    const rawActive = localStorage.getItem("lbr_active_otp");
-    if (rawActive) {
-      const active = JSON.parse(rawActive);
-      if (active && active.code === code) {
-        if (now > active.expiresAt) {
-          showStatus("❌ Este código OTP expirou (a validade de 5 minutos foi excedida). Peça um novo código ao administrador.", "error");
-          if (submitBtn) submitBtn.disabled = false;
-          return;
-        }
-        localStorage.setItem("lbr_auth_status", "authorized");
-        localStorage.setItem("lbr_role", "guest");
-        localStorage.setItem("lbr_member_name", active.note || "Membro do Clube");
-        showToast("✨ Bem-vindo ao Clube Let's Be Readers!");
-        setTimeout(() => {
-          window.location.href = "index.html";
-        }, 600);
-        return;
-      }
-    }
   } catch (e) {}
 
-  // Se tem 6 dígitos numéricos
-  if (/^\d{6}$/.test(code)) {
-    localStorage.setItem("lbr_auth_status", "authorized");
-    localStorage.setItem("lbr_role", "guest");
-    localStorage.setItem("lbr_member_name", "Membro do Clube");
-    showToast("✨ Bem-vindo ao Clube Let's Be Readers!");
-    setTimeout(() => {
-      window.location.href = "index.html";
-    }, 600);
-    return;
-  }
-
-  showStatus("Código OTP inválido ou expirado. Verifique e tente novamente.", "error");
+  // Se o código não foi encontrado ou não é válido
+  showStatus("❌ Código OTP inválido ou expirado. Peça um novo convite ao administrador.", "error");
   if (submitBtn) submitBtn.disabled = false;
 }
 
 // Inicialização da página
 document.addEventListener("DOMContentLoaded", () => {
+  // Limpeza de tokens legados residuais
+  try {
+    localStorage.removeItem("lbr_auth_status");
+  } catch(e) {}
+
   const urlParams = new URLSearchParams(window.location.search);
   const adminParam = urlParams.get("admin");
   const otpParam = urlParams.get("otp");
@@ -279,7 +273,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 1. Acesso Admin via URL (Apenas em computadores/laptops, NUNCA em celulares)
   if (!isMobile && adminParam && (adminParam.trim() === ADMIN_MASTER_KEY || adminParam.trim().toLowerCase() === "gehard")) {
-    localStorage.setItem("lbr_auth_status", "authorized");
+    localStorage.setItem(AUTH_STATUS_KEY, "authorized");
     localStorage.setItem("lbr_role", "admin");
     localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
     localStorage.setItem("lbr_device_id", "admin_laptop_gehard");

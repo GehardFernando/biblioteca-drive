@@ -25,6 +25,8 @@ const toastMessage = document.getElementById("toastMessage");
 
 let otpTimerInterval = null;
 
+const AUTH_STATUS_KEY = "lbr_club_auth_v12";
+
 // Bloqueio rigoroso: O painel de administração é exclusivo do laptop Linux do Gehard
 function enforceAdminAccess() {
   const ua = navigator.userAgent || "";
@@ -42,13 +44,18 @@ function enforceAdminAccess() {
     try {
       localStorage.removeItem("lbr_role");
       localStorage.removeItem("lbr_admin_key");
+      localStorage.removeItem("lbr_auth_status");
     } catch (e) {}
     alert("Acesso Negado: O Painel de Administração é restrito exclusivamente ao laptop do administrador.");
     window.location.replace("entrar.html");
     return false;
   }
 
-  localStorage.setItem("lbr_auth_status", "authorized");
+  try {
+    localStorage.removeItem("lbr_auth_status");
+  } catch (e) {}
+
+  localStorage.setItem(AUTH_STATUS_KEY, "authorized");
   localStorage.setItem("lbr_role", "admin");
   localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
   localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
