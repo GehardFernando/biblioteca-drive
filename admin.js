@@ -1,9 +1,10 @@
 // ==========================================================================
-// ADMIN.JS — Painel de Controle de Membros & Convites OTP
+// ADMIN.JS — Painel de Controle de Membros & Convites OTP (Exclusivo Laptop)
 // ==========================================================================
 const ADMIN_MASTER_KEY = "lbr_master_gehard_8f93a1c72";
 const GOOGLE_DRIVE_API_URL = "https://script.google.com/macros/s/AKfycbwGk2epbZ3thFo8ZJhHQDLUEZffTRobl657b6hGKMXNJUXUBtn9cSVUtgIDoHhzaW4rww/exec";
 const BASE_SITE_URL = "https://gehardfernando.github.io/biblioteca-drive/";
+const OTP_VALIDITY_MS = 5 * 60 * 1000; // Validade estrita de 5 minutos
 
 // Elementos da Interface
 const adminOtpNote = document.getElementById("adminOtpNote");
@@ -13,6 +14,8 @@ const adminLatestOtpCode = document.getElementById("adminLatestOtpCode");
 const adminLatestOtpNote = document.getElementById("adminLatestOtpNote");
 const copyLatestOtpBtn = document.getElementById("copyLatestOtpBtn");
 const copyLatestLinkBtn = document.getElementById("copyLatestLinkBtn");
+const otpCountdown = document.getElementById("otpCountdown");
+const otpTimerBadge = document.getElementById("otpTimerBadge");
 const refreshMembersBtn = document.getElementById("refreshMembersBtn");
 const adminMembersList = document.getElementById("adminMembersList");
 const activeMembersCount = document.getElementById("activeMembersCount");
@@ -20,12 +23,36 @@ const adminSyncDriveBtn = document.getElementById("adminSyncDriveBtn");
 const toastNotification = document.getElementById("toastNotification");
 const toastMessage = document.getElementById("toastMessage");
 
-// Auto-elevar laptop do Gehard para Autoridade Máxima
-function ensureLaptopAdmin() {
+let otpTimerInterval = null;
+
+// Bloqueio rigoroso: O painel de administração é exclusivo do laptop Linux do Gehard
+function enforceAdminAccess() {
+  const ua = navigator.userAgent || "";
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+  const isLinuxDesktop = (navigator.platform && navigator.platform.indexOf("Linux") !== -1) &&
+                         (!ua.includes("Android")) &&
+                         (!isMobile);
+  const isLocal = window.location.hostname === "localhost" || 
+                  window.location.hostname === "127.0.0.1" || 
+                  window.location.protocol === "file:";
+  const urlParams = new URLSearchParams(window.location.search);
+  const hasMasterKey = urlParams.get("admin") === ADMIN_MASTER_KEY;
+
+  if (isMobile || (!isLocal && !isLinuxDesktop && !hasMasterKey)) {
+    try {
+      localStorage.removeItem("lbr_role");
+      localStorage.removeItem("lbr_admin_key");
+    } catch (e) {}
+    alert("Acesso Negado: O Painel de Administração é restrito exclusivamente ao laptop do administrador.");
+    window.location.replace("entrar.html");
+    return false;
+  }
+
   localStorage.setItem("lbr_auth_status", "authorized");
   localStorage.setItem("lbr_role", "admin");
   localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
   localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
+  return true;
 }
 
 // Exibir feedback tipo toast
@@ -38,7 +65,7 @@ function showToast(msg) {
   }, 3000);
 }
 
-// Armazenamento local de convites para agilidade e modo offline
+// Armazenamento local de convites
 function getLocalOtpPool() {
   try {
     const raw = localStorage.getItem("lbr_otp_pool");
@@ -83,6 +110,80 @@ async function copyTextWithFeedback(text, btnEl, successLabel = "Copiado! ✓") 
   }
 }
 
+// Iniciar contagem regressiva de 5 minutos
+function startOtpCountdown(expiresAt) {
+  if (otpTimerInterval) clearInterval(otpTimerInterval);
+
+  function updateTimer() {
+    const now = Date.now();
+    const diff = expiresAt - now;
+
+    if (diff <= 0) {
+      clearInterval(otpTimerInterval);
+      otpTimerInterval = null;
+      if (otpCountdown) otpCountdown.textContent = "00:00";
+      if (adminLatestOtpBox) adminLatestOtpBox.classList.add("expired");
+      if (otpTimerBadge) {
+        otpTimerBadge.innerHTML = '<span>⚠️ Código Expirado (5 min esgotados)</span>';
+      }
+      return;
+    }
+
+    const mins = Math.floor(diff / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+    const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+    if (adminLatestOtpBox) adminLatestOtpBox.classList.remove("expired");
+    if (otpTimerBadge) {
+      otpTimerBadge.innerHTML = `
+        <span class="otp-timer-icon">⏱️</span>
+        <span class="otp-timer-text">Válido por:</span>
+        <span class="otp-countdown-val" id="otpCountdown">${timeStr}</span>
+      `;
+    }
+  }
+
+  updateTimer();
+  otpTimerInterval = setInterval(updateTimer, 1000);
+}
+
+// Exibir o card de destaque do código gerado
+function showOtpDisplayBox(otpCode, note, expiresAt) {
+  if (!adminLatestOtpBox) return;
+  adminLatestOtpBox.classList.remove("hidden");
+  if (adminLatestOtpNote) adminLatestOtpNote.textContent = `Para: ${note}`;
+  if (adminLatestOtpCode) {
+    adminLatestOtpCode.textContent = `${otpCode.substring(0, 3)} ${otpCode.substring(3)}`;
+  }
+
+  const baseUrl = (typeof window !== "undefined" && window.location.hostname.includes("github.io"))
+    ? window.location.origin + window.location.pathname.replace(/admin\.html.*$/, "") + "entrar.html"
+    : `${BASE_SITE_URL}entrar.html`;
+
+  const fullUrl = `${baseUrl}?otp=${otpCode}&exp=${expiresAt}&t=${Date.now()}`;
+
+  if (copyLatestOtpBtn) {
+    copyLatestOtpBtn.onclick = () => copyTextWithFeedback(otpCode, copyLatestOtpBtn, "OTP Copiado! ✓");
+  }
+  if (copyLatestLinkBtn) {
+    copyLatestLinkBtn.onclick = () => copyTextWithFeedback(fullUrl, copyLatestLinkBtn, "Link Copiado! ✓");
+  }
+
+  startOtpCountdown(expiresAt);
+}
+
+// Restaurar código ativo se ainda estiver dentro dos 5 minutos
+function restoreActiveOtp() {
+  try {
+    const raw = localStorage.getItem("lbr_active_otp");
+    if (!raw) return;
+    const active = JSON.parse(raw);
+    if (active && active.expiresAt && Date.now() < active.expiresAt) {
+      showOtpDisplayBox(active.code, active.note || "Convidado", active.expiresAt);
+    }
+  } catch (e) {}
+}
+
 // Renderizar a lista de membros e convites
 function renderMembersList(invites = []) {
   if (!adminMembersList) return;
@@ -102,21 +203,35 @@ function renderMembersList(invites = []) {
     return;
   }
 
+  const now = Date.now();
+
   invites.forEach(item => {
     const card = document.createElement("div");
     card.className = "member-item-card";
 
     const isUsed = item.used;
-    const badgeHtml = isUsed 
-      ? `<span class="slot-badge badge-active">Ativo • Aparelho Vinculado</span>`
-      : `<span class="slot-badge badge-pending">Pendente (Aguardando Ativação)</span>`;
+    const expiresAt = item.expiresAt ? new Date(item.expiresAt).getTime() : 0;
+    const isExpired = !isUsed && expiresAt > 0 && now > expiresAt;
+    const remainingMins = !isUsed && expiresAt > now ? Math.ceil((expiresAt - now) / 60000) : 0;
+
+    let badgeHtml = "";
+    if (isUsed) {
+      badgeHtml = `<span class="slot-badge badge-active">🟢 Ativo • Aparelho Vinculado</span>`;
+    } else if (isExpired) {
+      badgeHtml = `<span class="slot-badge badge-revoked">⚪ Expirado (5 min esgotados)</span>`;
+    } else {
+      badgeHtml = `<span class="slot-badge badge-pending">🟡 Válido (~${remainingMins}m restantes)</span>`;
+    }
 
     const formattedCode = item.code.length === 6 
       ? `${item.code.substring(0, 3)} ${item.code.substring(3)}`
       : item.code;
 
-    // Link para a página dedicada de entrada
-    const fullLink = `${BASE_SITE_URL}entrar.html?otp=${item.code}`;
+    const baseUrl = (typeof window !== "undefined" && window.location.hostname.includes("github.io"))
+      ? window.location.origin + window.location.pathname.replace(/admin\.html.*$/, "") + "entrar.html"
+      : `${BASE_SITE_URL}entrar.html`;
+
+    const fullLink = `${baseUrl}?otp=${item.code}&exp=${expiresAt}`;
     const dateFormatted = item.activatedAt 
       ? new Date(item.activatedAt).toLocaleDateString("pt-BR")
       : (item.createdAt ? new Date(item.createdAt).toLocaleDateString("pt-BR") : "Hoje");
@@ -192,60 +307,48 @@ async function revokeOtpOrMember(targetId) {
   showToast("Acesso / código revogado com sucesso!");
 }
 
-// Gerar novo código OTP de 6 dígitos
+// Gerar novo código OTP de 6 dígitos com validade de 5 minutos
 async function generateNewOtp() {
   const note = (adminOtpNote && adminOtpNote.value.trim()) || "Convidado";
   let otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const now = Date.now();
+  const expiresAt = now + OTP_VALIDITY_MS;
+
   const newInvite = {
-    id: "otp_" + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+    id: "otp_" + now.toString(36) + Math.random().toString(36).substring(2, 6),
     code: otpCode,
     note: note,
-    createdAt: new Date().toISOString(),
+    createdAt: new Date(now).toISOString(),
+    expiresAt: new Date(expiresAt).toISOString(),
     used: false,
     deviceId: null,
     activatedAt: null
   };
 
-  // Tenta criar na nuvem (Google Apps Script)
-  try {
-    const res = await fetch(`${GOOGLE_DRIVE_API_URL}?action=admin_create_otp&adminKey=${encodeURIComponent(ADMIN_MASTER_KEY)}&note=${encodeURIComponent(note)}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.status === "success" && data.otpCode) {
-        otpCode = data.otpCode;
-        newInvite.code = data.otpCode;
-        if (data.invite && data.invite.id) newInvite.id = data.invite.id;
-      }
-    }
-  } catch (err) {
-    console.warn("Sincronização em nuvem teve latência:", err);
-  }
+  // Salva no código ativo com expiração de 5 minutos
+  localStorage.setItem("lbr_active_otp", JSON.stringify({
+    code: otpCode,
+    note: note,
+    createdAt: now,
+    expiresAt: expiresAt
+  }));
 
   // Salva no pool local
   const pool = getLocalOtpPool();
   pool.unshift(newInvite);
   saveLocalOtpPool(pool);
 
-  // Exibe o card de destaque do código gerado
-  if (adminLatestOtpBox) {
-    adminLatestOtpBox.classList.remove("hidden");
-    if (adminLatestOtpNote) adminLatestOtpNote.textContent = `Para: ${note}`;
-    if (adminLatestOtpCode) {
-      adminLatestOtpCode.textContent = `${otpCode.substring(0, 3)} ${otpCode.substring(3)}`;
-    }
-
-    const fullUrl = `${BASE_SITE_URL}entrar.html?otp=${otpCode}`;
-    if (copyLatestOtpBtn) {
-      copyLatestOtpBtn.onclick = () => copyTextWithFeedback(otpCode, copyLatestOtpBtn, "OTP Copiado! ✓");
-    }
-    if (copyLatestLinkBtn) {
-      copyLatestLinkBtn.onclick = () => copyTextWithFeedback(fullUrl, copyLatestLinkBtn, "Link Copiado! ✓");
-    }
-  }
+  // Exibe o card de destaque do código gerado com o contador regressivo de 5 minutos
+  showOtpDisplayBox(otpCode, note, expiresAt);
 
   if (adminOtpNote) adminOtpNote.value = "";
   renderMembersList(pool);
-  showToast("⚡ Novo código OTP gerado com sucesso!");
+  showToast("⚡ Novo código gerado! Válido por 5 minutos.");
+
+  // Tenta sincronizar com Google Apps Script
+  try {
+    fetch(`${GOOGLE_DRIVE_API_URL}?action=admin_create_otp&adminKey=${encodeURIComponent(ADMIN_MASTER_KEY)}&note=${encodeURIComponent(note)}&code=${encodeURIComponent(otpCode)}&expiresAt=${encodeURIComponent(newInvite.expiresAt)}`).catch(() => {});
+  } catch (err) {}
 }
 
 // Carregar lista da nuvem
@@ -285,9 +388,15 @@ async function syncGoogleDrive() {
 
 // Inicialização
 document.addEventListener("DOMContentLoaded", () => {
-  ensureLaptopAdmin();
+  // 1. Verificação rígida de autoridade (apenas laptop)
+  if (!enforceAdminAccess()) {
+    return;
+  }
 
-  // Carrega convites locais e busca atualização
+  // 2. Restaura o OTP ativo e o cronômetro se ainda estiver nos 5 minutos
+  restoreActiveOtp();
+
+  // 3. Carrega convites
   fetchCloudInvites();
 
   if (adminGenerateOtpBtn) {

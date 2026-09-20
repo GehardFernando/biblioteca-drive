@@ -1953,28 +1953,37 @@ body.auth-page {
 
 .lock-action-box {
   margin-bottom: 20px;
+  width: 100%;
 }
 
 .lock-input-group {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
 }
 
 .lock-input {
-  flex: 1;
+  width: 100%;
+  max-width: 360px;
+  box-sizing: border-box;
   background: rgba(10, 14, 23, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 10px;
-  padding: 12px 14px;
+  border-radius: 12px;
+  padding: 14px 16px;
   color: #ffffff;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   font-family: inherit;
+  text-align: center;
   transition: all 0.2s ease;
 }
 
 .lock-otp-input {
   font-family: inherit;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
+  font-weight: 600;
 }
 
 .lock-input:focus {
@@ -1984,10 +1993,19 @@ body.auth-page {
 }
 
 .btn-unlock-club {
-  padding: 12px 18px;
+  width: 100%;
+  max-width: 360px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 14px 24px;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.96rem;
   white-space: nowrap;
+  border-radius: 12px;
+  margin: 0 auto;
 }
 
 .lock-status-msg {
@@ -2324,6 +2342,50 @@ body.admin-page {
   text-align: center;
   margin: 10px 0;
   user-select: all;
+}
+
+/* Timer de Validade do OTP (5 Minutos) */
+.otp-timer-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 20px;
+  padding: 6px 14px;
+  margin: 0 auto 12px auto;
+  width: fit-content;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fcd34d;
+}
+
+.otp-countdown-val {
+  font-family: 'SF Mono', Consolas, monospace;
+  font-weight: 800;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 2px 7px;
+  border-radius: 6px;
+  letter-spacing: 0.05em;
+}
+
+.latest-otp-box.expired {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.latest-otp-box.expired .latest-otp-display {
+  color: #9ca3af;
+  text-decoration: line-through;
+  text-shadow: none;
+}
+
+.latest-otp-box.expired .otp-timer-badge {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
 }
 
 .latest-otp-actions {

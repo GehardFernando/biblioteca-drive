@@ -168,11 +168,15 @@ function doGet(e) {
         otpCode = Math.floor(100000 + Math.random() * 900000).toString();
       } while (state.invites.some(inv => inv.code === otpCode && !inv.used));
 
+      const now = new Date();
+      const expiresAt = p.expiresAt || new Date(now.getTime() + 5 * 60 * 1000).toISOString();
+
       const newInvite = {
         id: "otp_" + Utilities.getUuid().replace(/-/g, "").substring(0, 12),
-        code: otpCode,
+        code: (p.code || otpCode).trim(),
         note: (p.note || "Convidado").trim(),
-        createdAt: new Date().toISOString(),
+        createdAt: now.toISOString(),
+        expiresAt: expiresAt,
         used: false,
         deviceId: null,
         activatedAt: null
@@ -184,8 +188,9 @@ function doGet(e) {
       return jsonOutput({
         status: "success",
         invite: newInvite,
-        otpCode: otpCode,
-        inviteUrl: BASE_SITE_URL + "?otp=" + otpCode
+        otpCode: newInvite.code,
+        expiresAt: expiresAt,
+        inviteUrl: BASE_SITE_URL + "entrar.html?otp=" + newInvite.code
       });
     }
 
@@ -234,6 +239,14 @@ function doGet(e) {
 
       if (!matched) {
         return jsonOutput({ status: "error", message: "Código de convite ou OTP inválido ou não encontrado." });
+      }
+
+      // Validação estrita de 5 minutos
+      if (!matched.used && matched.createdAt) {
+        const elapsedMs = Date.now() - new Date(matched.createdAt).getTime();
+        if (elapsedMs > 5 * 60 * 1000) {
+          return jsonOutput({ status: "error", message: "Este código OTP expirou (a validade de 5 minutos foi excedida). Peça um novo código ao administrador." });
+        }
       }
 
       if (matched.used && matched.deviceId !== deviceId) {

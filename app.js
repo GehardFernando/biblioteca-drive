@@ -193,7 +193,7 @@ const PAGE_SIZE = 36;
 let visibleCount = PAGE_SIZE;
 
 // Chave de versão de cache local (invalida automaticamente caches de versões antigas garantindo 100% das capas atualizadas)
-const CACHE_KEY = "drive_books_cache_v10";
+const CACHE_KEY = "drive_books_cache_v11";
 
 // Expurgar proativamente caches legados corrompidos (mobile/desktop)
 if (typeof window !== "undefined") {
@@ -380,15 +380,30 @@ function getOrCreateDeviceId() {
 function checkLaptopAuthority() {
   if (typeof window === "undefined") return false;
 
+  const ua = navigator.userAgent || "";
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+
+  // Celulares são terminantemente proibidos de ter perfil de administrador
+  if (isMobile) {
+    try {
+      if (localStorage.getItem("lbr_role") === "admin") {
+        localStorage.setItem("lbr_role", "guest");
+      }
+      localStorage.removeItem("lbr_admin_key");
+    } catch(e) {}
+    return false;
+  }
+
   const isLocal = window.location.hostname === "localhost" ||
                   window.location.hostname === "127.0.0.1" ||
                   window.location.protocol === "file:" ||
                   window.location.hostname === "";
 
-  // Detecção automática do laptop Linux desktop do Gehard (Ubuntu x86_64)
+  // Detecção estrita do laptop Linux desktop do Gehard (Ubuntu x86_64)
   const isGehardLaptop = typeof navigator !== "undefined" &&
                          (navigator.platform && navigator.platform.includes("Linux")) &&
-                         (!navigator.userAgent.includes("Android"));
+                         (!ua.includes("Android")) &&
+                         (!isMobile);
 
   if (isLocal || isGehardLaptop) {
     localStorage.setItem("lbr_auth_status", "authorized");
@@ -407,16 +422,24 @@ function checkLaptopAuthority() {
 
 // Checagem de acesso à biblioteca (redireciona para entrar.html se não autorizado)
 function checkLibraryAccess() {
+  const ua = navigator.userAgent || "";
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+
   // 1. Checa se o laptop é o do Gehard
   if (checkLaptopAuthority()) {
     if (adminPanelBtn) adminPanelBtn.classList.remove("hidden");
     return true;
   }
 
-  // 2. Parâmetro admin na URL
+  // Celulares nunca exibem botão de admin
+  if (isMobile && adminPanelBtn) {
+    adminPanelBtn.classList.add("hidden");
+  }
+
+  // 2. Parâmetro admin na URL (apenas desktop)
   const urlParams = new URLSearchParams(window.location.search);
   const adminParam = urlParams.get("admin");
-  if (adminParam && (adminParam.trim() === ADMIN_MASTER_KEY || adminParam.trim().toLowerCase() === "gehard" || adminParam.trim().toLowerCase() === "admin")) {
+  if (!isMobile && adminParam && (adminParam.trim() === ADMIN_MASTER_KEY || adminParam.trim().toLowerCase() === "gehard")) {
     localStorage.setItem("lbr_auth_status", "authorized");
     localStorage.setItem("lbr_role", "admin");
     localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
@@ -429,8 +452,10 @@ function checkLibraryAccess() {
   // 3. Se usuário já está autorizado no aparelho
   const isAuthorized = localStorage.getItem("lbr_auth_status") === "authorized";
   if (isAuthorized) {
-    if (localStorage.getItem("lbr_role") === "admin" && adminPanelBtn) {
+    if (!isMobile && localStorage.getItem("lbr_role") === "admin" && adminPanelBtn) {
       adminPanelBtn.classList.remove("hidden");
+    } else if (adminPanelBtn) {
+      adminPanelBtn.classList.add("hidden");
     }
     return true;
   }

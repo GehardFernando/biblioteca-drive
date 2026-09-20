@@ -3,6 +3,7 @@
 // ==========================================================================
 const ADMIN_MASTER_KEY = "lbr_master_gehard_8f93a1c72";
 const GOOGLE_DRIVE_API_URL = "https://script.google.com/macros/s/AKfycbwGk2epbZ3thFo8ZJhHQDLUEZffTRobl657b6hGKMXNJUXUBtn9cSVUtgIDoHhzaW4rww/exec";
+const OTP_VALIDITY_MS = 5 * 60 * 1000; // 5 minutos de validade
 
 const inviteInput = document.getElementById("inviteInput");
 const submitBtn = document.getElementById("submitBtn");
@@ -47,20 +48,33 @@ function getOrCreateDeviceId() {
   return id;
 }
 
-// Reconhece automaticamente o laptop do Gehard
+// Reconhece estritamente o laptop Linux do Gehard (Celulares NUNCA são autorizados como admin)
 function checkLaptopAuthority() {
   if (typeof window === "undefined") return false;
+
+  const ua = navigator.userAgent || "";
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+  
+  // Celulares são terminantemente proibidos de receber autoridade máxima
+  if (isMobile) {
+    try {
+      localStorage.removeItem("lbr_role");
+      localStorage.removeItem("lbr_admin_key");
+    } catch(e) {}
+    return false;
+  }
 
   const isLocal = window.location.hostname === "localhost" ||
                   window.location.hostname === "127.0.0.1" ||
                   window.location.protocol === "file:" ||
                   window.location.hostname === "";
 
-  const isGehardLaptop = typeof navigator !== "undefined" &&
+  const isLinuxDesktop = typeof navigator !== "undefined" &&
                          (navigator.platform && navigator.platform.includes("Linux")) &&
-                         (!navigator.userAgent.includes("Android"));
+                         (!ua.includes("Android")) &&
+                         (!isMobile);
 
-  if (isLocal || isGehardLaptop) {
+  if (isLocal || isLinuxDesktop) {
     localStorage.setItem("lbr_auth_status", "authorized");
     localStorage.setItem("lbr_role", "admin");
     localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
@@ -103,20 +117,20 @@ function extractOtpOrToken(inputStr) {
 // Validação e desbloqueio
 async function validateAndEnter(rawInput) {
   if (!rawInput) {
-    showStatus("Por favor, digite seu código OTP de 6 dígitos ou cole o link.", "error");
+    showStatus("Por favor, digite seu código OTP de 6 dígitos.", "error");
     return;
   }
 
   const trimmed = rawInput.trim();
 
-  // 1. Verificação se digitou a chave mestre ou credencial de admin
+  // 1. Verificação se digitou a chave mestre em computador desktop
   const isMasterKey = trimmed === ADMIN_MASTER_KEY ||
                       trimmed.toLowerCase() === "gehard" ||
-                      trimmed.toLowerCase() === "admin" ||
-                      trimmed.includes(ADMIN_MASTER_KEY) ||
-                      trimmed.includes("admin=" + ADMIN_MASTER_KEY);
+                      trimmed.includes(ADMIN_MASTER_KEY);
 
-  if (isMasterKey) {
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent);
+
+  if (isMasterKey && !isMobile) {
     localStorage.setItem("lbr_auth_status", "authorized");
     localStorage.setItem("lbr_role", "admin");
     localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
@@ -130,7 +144,22 @@ async function validateAndEnter(rawInput) {
 
   const code = extractOtpOrToken(rawInput);
   if (!code) {
-    showStatus("Código de convite ou link inválido.", "error");
+    showStatus("Código OTP inválido.", "error");
+    return;
+  }
+
+  // 2. Checagem de expiração no link URL (se veio com exp ou t)
+  const urlParams = new URLSearchParams(window.location.search);
+  const expParam = urlParams.get("exp");
+  const tParam = urlParams.get("t");
+  const now = Date.now();
+
+  if (expParam && now > parseInt(expParam)) {
+    showStatus("❌ Este código OTP expirou (a validade de 5 minutos foi excedida). Peça um novo código ao administrador.", "error");
+    return;
+  }
+  if (tParam && (now - parseInt(tParam)) > OTP_VALIDITY_MS) {
+    showStatus("❌ Este código OTP expirou (a validade de 5 minutos foi excedida). Peça um novo código ao administrador.", "error");
     return;
   }
 
@@ -139,6 +168,7 @@ async function validateAndEnter(rawInput) {
 
   const deviceId = getOrCreateDeviceId();
 
+  // 3. Validação online com Google Apps Script
   try {
     const apiUrl = `${GOOGLE_DRIVE_API_URL}?action=activate_otp&code=${encodeURIComponent(code)}&deviceId=${encodeURIComponent(deviceId)}`;
     const res = await fetch(apiUrl);
@@ -153,7 +183,7 @@ async function validateAndEnter(rawInput) {
         window.location.href = "index.html";
       }, 700);
       return;
-    } else if (data && data.message) {
+    } else if (data && data.message && (data.message.includes("expirou") || data.message.includes("utilizado"))) {
       showStatus(data.message, "error");
       if (submitBtn) submitBtn.disabled = false;
       return;
@@ -162,18 +192,28 @@ async function validateAndEnter(rawInput) {
     console.warn("Validação online via nuvem teve lentidão:", err);
   }
 
-  // Fallback local: checa base local de convites
+  // 4. Verificação no banco local de convites (com verificação de 5 minutos)
   try {
     const rawPool = localStorage.getItem("lbr_otp_pool");
     if (rawPool) {
       const pool = JSON.parse(rawPool);
       const matched = pool.find(item => item.code.toLowerCase() === code.toLowerCase() || item.id === code);
       if (matched) {
-        if (matched.used && matched.deviceId !== deviceId) {
-          showStatus("Este código OTP já foi utilizado em outro aparelho.", "error");
+        // Checa se expirou (5 minutos)
+        const expTime = matched.expiresAt ? new Date(matched.expiresAt).getTime() : 0;
+        if (expTime > 0 && now > expTime) {
+          showStatus("❌ Este código OTP expirou (a validade de 5 minutos foi excedida). Peça um novo código ao administrador.", "error");
           if (submitBtn) submitBtn.disabled = false;
           return;
         }
+
+        // Checa se já foi usado em outro aparelho
+        if (matched.used && matched.deviceId !== deviceId) {
+          showStatus("❌ Este código OTP já foi utilizado em outro aparelho.", "error");
+          if (submitBtn) submitBtn.disabled = false;
+          return;
+        }
+
         matched.used = true;
         matched.deviceId = deviceId;
         matched.activatedAt = new Date().toISOString();
@@ -189,9 +229,30 @@ async function validateAndEnter(rawInput) {
         return;
       }
     }
+
+    // Checa se corresponde ao active_otp
+    const rawActive = localStorage.getItem("lbr_active_otp");
+    if (rawActive) {
+      const active = JSON.parse(rawActive);
+      if (active && active.code === code) {
+        if (now > active.expiresAt) {
+          showStatus("❌ Este código OTP expirou (a validade de 5 minutos foi excedida). Peça um novo código ao administrador.", "error");
+          if (submitBtn) submitBtn.disabled = false;
+          return;
+        }
+        localStorage.setItem("lbr_auth_status", "authorized");
+        localStorage.setItem("lbr_role", "guest");
+        localStorage.setItem("lbr_member_name", active.note || "Membro do Clube");
+        showToast("✨ Bem-vindo ao Clube Let's Be Readers!");
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 600);
+        return;
+      }
+    }
   } catch (e) {}
 
-  // Se tem 6 dígitos numéricos e a nuvem não respondeu
+  // Se tem 6 dígitos numéricos
   if (/^\d{6}$/.test(code)) {
     localStorage.setItem("lbr_auth_status", "authorized");
     localStorage.setItem("lbr_role", "guest");
@@ -209,14 +270,15 @@ async function validateAndEnter(rawInput) {
 
 // Inicialização da página
 document.addEventListener("DOMContentLoaded", () => {
-  // Checagem se já está autorizado
   const urlParams = new URLSearchParams(window.location.search);
   const adminParam = urlParams.get("admin");
   const otpParam = urlParams.get("otp");
   const inviteParam = urlParams.get("convite");
+  const ua = navigator.userAgent || "";
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
 
-  // 1. Acesso Admin via URL
-  if (adminParam && (adminParam.trim() === ADMIN_MASTER_KEY || adminParam.trim().toLowerCase() === "gehard" || adminParam.trim().toLowerCase() === "admin")) {
+  // 1. Acesso Admin via URL (Apenas em computadores/laptops, NUNCA em celulares)
+  if (!isMobile && adminParam && (adminParam.trim() === ADMIN_MASTER_KEY || adminParam.trim().toLowerCase() === "gehard")) {
     localStorage.setItem("lbr_auth_status", "authorized");
     localStorage.setItem("lbr_role", "admin");
     localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
@@ -236,13 +298,12 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  // 3. Checa autoridade do laptop
+  // 3. Checa autoridade do laptop (mostra botão admin SOMENTE no laptop)
   const isLaptop = checkLaptopAuthority();
-  if (isLaptop) {
-    // Laptop já tem passe livre
-    if (adminLink) {
-      adminLink.textContent = "⚡ Acessar Painel do Administrador (Autorizado)";
-    }
+  if (isLaptop && adminLink) {
+    adminLink.classList.remove("hidden");
+  } else if (adminLink) {
+    adminLink.classList.add("hidden");
   }
 
   // Evento do formulário
@@ -251,17 +312,6 @@ document.addEventListener("DOMContentLoaded", () => {
     form.addEventListener("submit", (e) => {
       e.preventDefault();
       if (inviteInput) validateAndEnter(inviteInput.value);
-    });
-  }
-
-  // Evento do link de admin
-  if (adminLink) {
-    adminLink.addEventListener("click", (e) => {
-      // Se for Gehard, já eleva a admin e leva para o admin.html
-      localStorage.setItem("lbr_auth_status", "authorized");
-      localStorage.setItem("lbr_role", "admin");
-      localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
-      localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
     });
   }
 });

@@ -5,11 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0e17" />
   <title>Painel do Administrador | Let's Be Readers</title>
+  <script>
+    // BLOQUEIO ESTRITO DE SEGURANÇA: Exclusivo para o Laptop do Gehard
+    (function() {
+      var ua = navigator.userAgent || "";
+      var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+      var isLinuxDesktop = (navigator.platform && navigator.platform.indexOf("Linux") !== -1) &&
+                           (!ua.includes("Android")) &&
+                           (!isMobile);
+      var isLocal = window.location.hostname === "localhost" || 
+                    window.location.hostname === "127.0.0.1" || 
+                    window.location.protocol === "file:";
+      var urlParams = new URLSearchParams(window.location.search);
+      var hasMasterKey = urlParams.get("admin") === "lbr_master_gehard_8f93a1c72";
+
+      // Celulares são terminantemente PROIBIDOS de acessar este painel
+      if (isMobile || (!isLocal && !isLinuxDesktop && !hasMasterKey)) {
+        try {
+          localStorage.removeItem("lbr_role");
+          localStorage.removeItem("lbr_admin_key");
+        } catch(e) {}
+        window.location.replace("entrar.html");
+      }
+    })();
+  </script>
   <!-- Google Fonts: Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20260919_v10" />
+  <link rel="stylesheet" href="style.css?v=20260919_v11" />
 </head>
 <body class="admin-page">
 
@@ -107,6 +131,11 @@
             <span class="latest-otp-tag" id="adminLatestOtpNote">Para: Convidado</span>
           </div>
           <div class="latest-otp-display" id="adminLatestOtpCode">000 000</div>
+          <div class="otp-timer-badge" id="otpTimerBadge">
+            <span class="otp-timer-icon">⏱️</span>
+            <span class="otp-timer-text">Válido por:</span>
+            <span class="otp-countdown-val" id="otpCountdown">05:00</span>
+          </div>
           <div class="latest-otp-actions">
             <button class="btn-otp-action" id="copyLatestOtpBtn" title="Copiar apenas os 6 dígitos">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -175,6 +204,6 @@
     <span id="toastMessage">Pronto!</span>
   </div>
 
-  <script src="admin.js?v=20260919_v10"></script>
+  <script src="admin.js?v=20260919_v11"></script>
 </body>
 </html>
