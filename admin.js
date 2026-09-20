@@ -26,7 +26,7 @@ const toastMessage = document.getElementById("toastMessage");
 
 let otpTimerInterval = null;
 
-const AUTH_STATUS_KEY = "lbr_club_auth_v13_locked";
+const AUTH_STATUS_KEY = "lbr_club_auth_v15_locked";
 
 // Bloqueio rigoroso: O painel de administração é exclusivo do laptop Linux do Gehard
 function enforceAdminAccess() {
@@ -50,6 +50,7 @@ function enforceAdminAccess() {
       localStorage.removeItem("lbr_role");
       localStorage.removeItem("lbr_admin_key");
       localStorage.removeItem(AUTH_STATUS_KEY);
+      localStorage.removeItem("lbr_club_auth_v13_locked");
       localStorage.removeItem("lbr_club_auth_v12");
       localStorage.removeItem("lbr_auth_status");
     } catch (e) {}
@@ -61,6 +62,7 @@ function enforceAdminAccess() {
   try {
     localStorage.removeItem("lbr_auth_status");
     localStorage.removeItem("lbr_club_auth_v12");
+    localStorage.removeItem("lbr_club_auth_v13_locked");
   } catch (e) {}
 
   localStorage.setItem(AUTH_STATUS_KEY, "authorized");

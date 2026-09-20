@@ -4,7 +4,7 @@
 const ADMIN_MASTER_KEY = "lbr_master_gehard_8f93a1c72";
 const GOOGLE_DRIVE_API_URL = "https://script.google.com/macros/s/AKfycbwGk2epbZ3thFo8ZJhHQDLUEZffTRobl657b6hGKMXNJUXUBtn9cSVUtgIDoHhzaW4rww/exec";
 const OTP_VALIDITY_MS = 5 * 60 * 1000; // 5 minutos de validade estrita
-const AUTH_STATUS_KEY = "lbr_club_auth_v13_locked";
+const AUTH_STATUS_KEY = "lbr_club_auth_v15_locked";
 
 const inviteInput = document.getElementById("inviteInput");
 const submitBtn = document.getElementById("submitBtn");
@@ -66,6 +66,7 @@ function checkLaptopAuthority() {
       localStorage.removeItem("lbr_role");
       localStorage.removeItem("lbr_admin_key");
       localStorage.removeItem(AUTH_STATUS_KEY);
+      localStorage.removeItem("lbr_club_auth_v13_locked");
       localStorage.removeItem("lbr_club_auth_v12");
       localStorage.removeItem("lbr_auth_status");
     } catch(e) {}
@@ -181,7 +182,8 @@ async function validateAndEnter(rawInput) {
     const res = await fetch(apiUrl);
     const data = await res.json();
 
-    if (data && data.status === "success") {
+    // Requer resposta autêntica de ativação de OTP (não aceita a lista de livros padrão)
+    if (data && data.status === "success" && data.authorized === true && !data.books) {
       localStorage.setItem(AUTH_STATUS_KEY, "authorized");
       localStorage.setItem("lbr_role", "guest");
       localStorage.setItem("lbr_member_name", data.note || "Membro do Clube");
@@ -190,7 +192,7 @@ async function validateAndEnter(rawInput) {
         window.location.href = "index.html";
       }, 700);
       return;
-    } else if (data && data.message && (data.message.includes("expirou") || data.message.includes("utilizado"))) {
+    } else if (data && data.message && (data.message.includes("expirou") || data.message.includes("utilizado") || data.message.includes("inválido"))) {
       showStatus(data.message, "error");
       if (submitBtn) submitBtn.disabled = false;
       return;

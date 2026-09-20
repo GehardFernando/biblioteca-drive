@@ -377,7 +377,7 @@ function getOrCreateDeviceId() {
   return id;
 }
 
-const AUTH_STATUS_KEY = "lbr_club_auth_v13_locked";
+const AUTH_STATUS_KEY = "lbr_club_auth_v15_locked";
 
 // Reconhecer este computador/laptop como Autoridade Máxima permanente
 function checkLaptopAuthority() {
@@ -396,6 +396,7 @@ function checkLaptopAuthority() {
     try {
       localStorage.removeItem("lbr_role");
       localStorage.removeItem("lbr_admin_key");
+      localStorage.removeItem("lbr_club_auth_v13_locked");
       localStorage.removeItem("lbr_club_auth_v12");
       localStorage.removeItem("lbr_auth_status");
     } catch(e) {}
@@ -429,6 +430,7 @@ function checkLibraryAccess() {
   try {
     localStorage.removeItem("lbr_auth_status");
     localStorage.removeItem("lbr_club_auth_v12");
+    localStorage.removeItem("lbr_club_auth_v13_locked");
   } catch(e) {}
 
   const ua = navigator.userAgent || "";
@@ -496,7 +498,8 @@ async function checkDeviceRevocation() {
     const res = await fetch(`${GOOGLE_DRIVE_API_URL}?action=validate_device&deviceId=${encodeURIComponent(deviceId)}`);
     if (res.ok) {
       const data = await res.json();
-      if (data && (data.status === "unauthorized" || data.authorized === false)) {
+      // Ignora respostas do catálogo antigo (onde data.books existe)
+      if (data && !data.books && (data.status === "unauthorized" || data.authorized === false)) {
         localStorage.removeItem(AUTH_STATUS_KEY);
         localStorage.removeItem("lbr_role");
         localStorage.removeItem("lbr_member_name");
