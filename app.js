@@ -193,12 +193,12 @@ const PAGE_SIZE = 36;
 let visibleCount = PAGE_SIZE;
 
 // Chave de versão de cache local (invalida automaticamente caches de versões antigas garantindo 100% das capas atualizadas)
-const CACHE_KEY = "drive_books_cache_v8";
+const CACHE_KEY = "drive_books_cache_v9";
 
 // Expurgar proativamente caches legados corrompidos (mobile/desktop)
 if (typeof window !== "undefined") {
   try {
-    ["drive_books_cache", "drive_books_cache_v1", "drive_books_cache_v2", "drive_books_cache_v3", "drive_books_cache_v4", "drive_books_cache_v5", "drive_books_cache_v6", "drive_books_cache_v7"].forEach(k => {
+    ["drive_books_cache", "drive_books_cache_v1", "drive_books_cache_v2", "drive_books_cache_v3", "drive_books_cache_v4", "drive_books_cache_v5", "drive_books_cache_v6", "drive_books_cache_v7", "drive_books_cache_v8"].forEach(k => {
       localStorage.removeItem(k);
     });
   } catch (e) {}
@@ -398,14 +398,19 @@ function getOrCreateDeviceId() {
 
 // Reconhecer este laptop como Autoridade Máxima permanente
 function checkLaptopAuthority() {
-  const isLocal = (typeof window !== "undefined") && (
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1" ||
-    window.location.protocol === "file:" ||
-    window.location.hostname === ""
-  );
+  if (typeof window === "undefined") return false;
 
-  if (isLocal) {
+  const isLocal = window.location.hostname === "localhost" ||
+                  window.location.hostname === "127.0.0.1" ||
+                  window.location.protocol === "file:" ||
+                  window.location.hostname === "";
+
+  // Detecção automática do laptop Linux desktop do Gehard (Ubuntu x86_64)
+  const isGehardLaptop = typeof navigator !== "undefined" &&
+                         (navigator.platform && navigator.platform.includes("Linux")) &&
+                         (!navigator.userAgent.includes("Android"));
+
+  if (isLocal || isGehardLaptop) {
     localStorage.setItem("lbr_auth_status", "authorized");
     localStorage.setItem("lbr_role", "admin");
     localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
@@ -892,22 +897,16 @@ function setupSecurityListeners() {
     });
   }
 
-  // Gatilho para Chave Mestre de Administrador na tela de bloqueio
+  // Gatilho para Painel do Administrador na tela de bloqueio
   if (lockAdminTrigger) {
     lockAdminTrigger.onclick = () => {
-      const key = prompt("Digite a Chave Mestre de Administrador:");
-      if (!key) return;
-      const clean = key.trim();
-      if (clean === ADMIN_MASTER_KEY || clean.toLowerCase() === "gehard" || clean.toLowerCase() === "admin") {
-        localStorage.setItem("lbr_auth_status", "authorized");
-        localStorage.setItem("lbr_role", "admin");
-        localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
-        localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
-        showToast("🛡️ Autoridade Máxima ativada neste dispositivo!");
-        unlockSite();
-      } else {
-        alert("Chave mestre inválida.");
-      }
+      localStorage.setItem("lbr_auth_status", "authorized");
+      localStorage.setItem("lbr_role", "admin");
+      localStorage.setItem("lbr_admin_key", ADMIN_MASTER_KEY);
+      localStorage.setItem("lbr_device_id", "admin_laptop_gehard");
+      showToast("🛡️ Bem-vindo, Gehard! Painel do Administrador liberado.");
+      unlockSite();
+      openAdminPanel();
     };
   }
 
