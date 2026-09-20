@@ -349,6 +349,25 @@ const kindleSaveEmailBtn = document.getElementById("kindleSaveEmailBtn");
 const kindleEmailSendBtn = document.getElementById("kindleEmailSendBtn");
 let currentKindleBook = null;
 
+// Elementos do Modal Surpreenda-me / Roleta de Indicação
+const surpriseModal = document.getElementById("surpriseModal");
+const closeSurpriseModalBtn = document.getElementById("closeSurpriseModalBtn");
+const surpriseMeBtn = document.getElementById("surpriseMeBtn");
+const surpriseGenreSelect = document.getElementById("surpriseGenreSelect");
+const surpriseStage = document.getElementById("surpriseStage");
+const surpriseCover = document.getElementById("surpriseCover");
+const surpriseFormatBadge = document.getElementById("surpriseFormatBadge");
+const surpriseGenrePill = document.getElementById("surpriseGenrePill");
+const surpriseBookTitle = document.getElementById("surpriseBookTitle");
+const surpriseBookAuthor = document.getElementById("surpriseBookAuthor");
+const surpriseBookSynopsis = document.getElementById("surpriseBookSynopsis");
+const surpriseSizeChip = document.getElementById("surpriseSizeChip");
+const surpriseAgeChip = document.getElementById("surpriseAgeChip");
+const surpriseRerollBtn = document.getElementById("surpriseRerollBtn");
+const surpriseOpenBookBtn = document.getElementById("surpriseOpenBookBtn");
+let currentSurpriseBook = null;
+let surpriseShuffleInterval = null;
+
 // Toast
 const toastNotification = document.getElementById("toastNotification");
 const toastMessage = document.getElementById("toastMessage");
@@ -947,6 +966,138 @@ async function executeKindleEmailSend() {
   }, 1000);
 }
 
+// ==========================================================================
+// ROLETA DE INDICAÇÃO DE LEITURA (SURPREENDA-ME)
+// ==========================================================================
+function openSurpriseModal() {
+  if (!allBooks || allBooks.length === 0) {
+    showToast("Catálogo de livros ainda está carregando...");
+    return;
+  }
+  if (surpriseModal) {
+    surpriseModal.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    document.body.style.overflow = "hidden";
+    rollSurpriseBook(true);
+  }
+}
+
+function closeSurpriseModal() {
+  if (surpriseShuffleInterval) {
+    clearInterval(surpriseShuffleInterval);
+    surpriseShuffleInterval = null;
+  }
+  if (surpriseStage) {
+    surpriseStage.classList.remove("is-shuffling");
+  }
+  if (surpriseRerollBtn) {
+    surpriseRerollBtn.disabled = false;
+  }
+  if (surpriseModal) {
+    surpriseModal.classList.add("hidden");
+  }
+  if (bookModal && bookModal.classList.contains("hidden") && 
+      kindleModal && kindleModal.classList.contains("hidden")) {
+    document.body.classList.remove("modal-open");
+    document.body.style.overflow = "";
+  }
+}
+
+function displaySurpriseBook(book) {
+  if (!book) return;
+  currentSurpriseBook = book;
+  
+  if (surpriseCover) {
+    surpriseCover.onerror = () => handleCoverError(surpriseCover);
+    surpriseCover.src = book.cover || defaultFallbackCover;
+    surpriseCover.alt = `Capa de ${book.title || "Livro"}`;
+  }
+  if (surpriseFormatBadge) {
+    surpriseFormatBadge.textContent = book.format || "EPUB";
+    surpriseFormatBadge.className = `surprise-format-badge format-badge ${(book.format || "epub").toLowerCase()}`;
+  }
+  if (surpriseGenrePill) {
+    surpriseGenrePill.textContent = book.category || "Literatura";
+  }
+  if (surpriseBookTitle) {
+    surpriseBookTitle.textContent = book.title || "Sem título";
+  }
+  if (surpriseBookAuthor) {
+    surpriseBookAuthor.textContent = book.author ? `Por ${book.author}` : "Autor não informado";
+  }
+  if (surpriseBookSynopsis) {
+    const syn = (book.synopsis && book.synopsis.trim().length > 10) 
+      ? book.synopsis 
+      : "Uma obra recomendada do acervo Let's Be Readers. Clique abaixo para ler a ficha completa e baixar o arquivo.";
+    surpriseBookSynopsis.textContent = syn;
+  }
+  if (surpriseSizeChip) {
+    surpriseSizeChip.textContent = `💾 ${book.size || "EPUB"}`;
+  }
+  if (surpriseAgeChip) {
+    const age = typeof detectAgeRating === "function" ? detectAgeRating(book) : "Livre";
+    surpriseAgeChip.textContent = `🟢 ${age}`;
+  }
+}
+
+function rollSurpriseBook(animate = true) {
+  if (!allBooks || allBooks.length === 0) return;
+  
+  if (surpriseShuffleInterval) {
+    clearInterval(surpriseShuffleInterval);
+    surpriseShuffleInterval = null;
+  }
+
+  // Filtrar pool pelo gênero selecionado
+  const selectedCategory = surpriseGenreSelect ? surpriseGenreSelect.value : "all";
+  let pool = allBooks;
+  if (selectedCategory && selectedCategory !== "all") {
+    pool = allBooks.filter(b => (b.category || "").toLowerCase() === selectedCategory.toLowerCase());
+  }
+  if (!pool || pool.length === 0) {
+    pool = allBooks;
+  }
+
+  if (!animate) {
+    const randomIndex = Math.floor(Math.random() * pool.length);
+    displaySurpriseBook(pool[randomIndex]);
+    return;
+  }
+
+  if (surpriseStage) surpriseStage.classList.add("is-shuffling");
+  if (surpriseRerollBtn) surpriseRerollBtn.disabled = true;
+
+  let rollCount = 0;
+  const maxRolls = 9; // ~720ms de efeito roleta rápida
+  
+  surpriseShuffleInterval = setInterval(() => {
+    rollCount++;
+    const tempIndex = Math.floor(Math.random() * pool.length);
+    const tempBook = pool[tempIndex];
+    if (tempBook) {
+      if (surpriseCover) {
+        surpriseCover.src = tempBook.cover || defaultFallbackCover;
+      }
+      if (surpriseBookTitle) {
+        surpriseBookTitle.textContent = tempBook.title || "...";
+      }
+      if (surpriseGenrePill) {
+        surpriseGenrePill.textContent = tempBook.category || "...";
+      }
+    }
+
+    if (rollCount >= maxRolls) {
+      clearInterval(surpriseShuffleInterval);
+      surpriseShuffleInterval = null;
+      if (surpriseStage) surpriseStage.classList.remove("is-shuffling");
+      if (surpriseRerollBtn) surpriseRerollBtn.disabled = false;
+      
+      const finalIndex = Math.floor(Math.random() * pool.length);
+      displaySurpriseBook(pool[finalIndex]);
+    }
+  }, 80);
+}
+
 // Conversor otimizado de Base64 para Blob (alocação única de memória)
 function base64ToBlob(base64, mimeType) {
   const bin = atob(base64);
@@ -1069,14 +1220,26 @@ function setupEventListeners() {
     renderBooks();
   });
 
-  // Atalho de teclado para a busca: barra "/"
+  // Atalhos de teclado
   document.addEventListener("keydown", (e) => {
     if (e.key === "/" && document.activeElement !== searchInput) {
       e.preventDefault();
       searchInput.focus();
     }
-    if (e.key === "Escape" && !bookModal.classList.contains("hidden")) {
-      closeBookModal();
+    if (e.key === "Escape") {
+      if (surpriseModal && !surpriseModal.classList.contains("hidden")) {
+        closeSurpriseModal();
+      } else if (kindleModal && !kindleModal.classList.contains("hidden")) {
+        closeKindleModal();
+      } else if (bookModal && !bookModal.classList.contains("hidden")) {
+        closeBookModal();
+      }
+    }
+    if ((e.key === "r" || e.key === "R") && surpriseModal && !surpriseModal.classList.contains("hidden")) {
+      if (document.activeElement !== searchInput && document.activeElement !== surpriseGenreSelect) {
+        e.preventDefault();
+        rollSurpriseBook(true);
+      }
     }
   });
 
@@ -1156,6 +1319,34 @@ function setupEventListeners() {
   if (kindleAmazonRegion) {
     kindleAmazonRegion.onchange = () => {
       localStorage.setItem("kindle_amazon_region", kindleAmazonRegion.value);
+    };
+  }
+
+  // Eventos do Modal Surpreenda-me / Roleta de Indicação
+  if (surpriseMeBtn) {
+    surpriseMeBtn.onclick = openSurpriseModal;
+  }
+  if (closeSurpriseModalBtn) {
+    closeSurpriseModalBtn.onclick = closeSurpriseModal;
+  }
+  if (surpriseModal) {
+    surpriseModal.onclick = (e) => {
+      if (e.target === surpriseModal) closeSurpriseModal();
+    };
+  }
+  if (surpriseRerollBtn) {
+    surpriseRerollBtn.onclick = () => rollSurpriseBook(true);
+  }
+  if (surpriseGenreSelect) {
+    surpriseGenreSelect.onchange = () => rollSurpriseBook(true);
+  }
+  if (surpriseOpenBookBtn) {
+    surpriseOpenBookBtn.onclick = () => {
+      if (currentSurpriseBook) {
+        const targetId = currentSurpriseBook.id;
+        closeSurpriseModal();
+        openBookModal(targetId);
+      }
     };
   }
 

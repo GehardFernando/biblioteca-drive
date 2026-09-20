@@ -75,7 +75,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20260919_v15" />
+  <link rel="stylesheet" href="style.css?v=20260919_v16" />
 </head>
 <body>
 
@@ -117,6 +117,17 @@
 
       <!-- Ações do Header -->
       <div class="nav-actions">
+        <button class="btn-surprise-nav" id="surpriseMeBtn" title="Surpreenda-me: Sortear um livro aleatório no acervo!">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="20" rx="5"></rect>
+            <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"></circle>
+            <circle cx="15.5" cy="8.5" r="1.5" fill="currentColor"></circle>
+            <circle cx="12" cy="12" r="1.5" fill="currentColor"></circle>
+            <circle cx="8.5" cy="15.5" r="1.5" fill="currentColor"></circle>
+            <circle cx="15.5" cy="15.5" r="1.5" fill="currentColor"></circle>
+          </svg>
+          <span class="btn-surprise-nav-text">Surpreenda-me 🎲</span>
+        </button>
         <button class="btn-kindle-nav" id="headerKindleBtn" title="Abrir Amazon Send to Kindle Web">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
@@ -418,6 +429,89 @@
     </div>
   </div>
 
+  <!-- Modal Surpreenda-me / Roleta de Indicação de Leitura -->
+  <div class="modal-backdrop hidden" id="surpriseModal">
+    <div class="modal-card surprise-modal-card">
+      <button class="modal-close" id="closeSurpriseModalBtn" title="Fechar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+
+      <div class="surprise-modal-header">
+        <div class="surprise-badge-sparkle">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2l2.4 7.2L21.6 12l-7.2 2.8L12 22l-2.4-7.2L2.4 12l7.2-2.8z"/>
+          </svg>
+          <span>Roleta de Leitura</span>
+        </div>
+        <h3 class="surprise-title">O que ler a seguir?</h3>
+        <p class="surprise-subtitle">Descubra sua próxima leitura entre mais de 660 títulos do acervo.</p>
+
+        <!-- Filtro Opcional de Gênero -->
+        <div class="surprise-filter-box">
+          <label for="surpriseGenreSelect">Filtrar por Vibe / Gênero:</label>
+          <div class="surprise-select-wrapper">
+            <select id="surpriseGenreSelect" class="surprise-genre-select">
+              <option value="all">✨ Qualquer Gênero (Surpresa Total)</option>
+              <option value="Ficção Científica">🚀 Ficção Científica</option>
+              <option value="Suspense & Mistério">🔍 Suspense & Mistério</option>
+              <option value="Fantasia & Aventura">⚔️ Fantasia & Aventura</option>
+              <option value="Clássicos da Literatura">🏛️ Clássicos da Literatura</option>
+              <option value="Desenvolvimento Pessoal & Negócios">💡 Desenvolvimento & Negócios</option>
+              <option value="Filosofia & História">📜 Filosofia & História</option>
+              <option value="Romance">💖 Romance</option>
+              <option value="Literatura Geral">📚 Literatura Geral</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Palco de Exibição / Animação da Roleta -->
+      <div class="surprise-stage" id="surpriseStage">
+        <div class="surprise-card-inner" id="surpriseCardInner">
+          <div class="surprise-cover-container">
+            <img id="surpriseCover" src="" alt="Capa Sorteada" />
+            <span class="surprise-format-badge" id="surpriseFormatBadge">EPUB</span>
+          </div>
+          <div class="surprise-info-container">
+            <div class="surprise-genre-pill" id="surpriseGenrePill">Ficção Científica</div>
+            <h4 class="surprise-book-title" id="surpriseBookTitle">Carregando indicação...</h4>
+            <p class="surprise-book-author" id="surpriseBookAuthor">Por Autor</p>
+            <p class="surprise-book-synopsis" id="surpriseBookSynopsis">Sinopse do livro selecionado...</p>
+            <div class="surprise-meta-chips">
+              <span class="surprise-chip" id="surpriseSizeChip">💾 2.1 MB</span>
+              <span class="surprise-chip" id="surpriseAgeChip">🟢 Livre</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ações do Modal -->
+      <div class="surprise-actions">
+        <button class="btn btn-reroll" id="surpriseRerollBtn" title="Girar a roleta e sortear outro livro">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="2" width="20" height="20" rx="5"></rect>
+            <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"></circle>
+            <circle cx="15.5" cy="8.5" r="1.5" fill="currentColor"></circle>
+            <circle cx="12" cy="12" r="1.5" fill="currentColor"></circle>
+            <circle cx="8.5" cy="15.5" r="1.5" fill="currentColor"></circle>
+            <circle cx="15.5" cy="15.5" r="1.5" fill="currentColor"></circle>
+          </svg>
+          <span>Sortear Outro (R)</span>
+        </button>
+        <button class="btn btn-primary btn-open-picked" id="surpriseOpenBookBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+          </svg>
+          <span>Ver Detalhes & Baixar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Notificação Toast (Feedback de download) -->
   <div class="toast-notification hidden" id="toastNotification">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -426,7 +520,7 @@
     <span id="toastMessage">Download iniciado!</span>
   </div>
 
-  <script src="books-data.js?v=20260919_v15"></script>
-  <script src="app.js?v=20260919_v15"></script>
+  <script src="books-data.js?v=20260919_v16"></script>
+  <script src="app.js?v=20260919_v16"></script>
 </body>
 </html>
